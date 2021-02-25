@@ -28,7 +28,7 @@ import * as interfaces from "./sdmx/interfaces";
 import * as abs from "./sdmx/abs3";
 //import * as oecd from "./sdmx/oecd";
 //import * as knoema from "./sdmx/knoema";
-//import * as nomis from "./sdmx/nomis";
+import * as nomis from "./sdmx/nomis";
 //import * as ilo from "./sdmx/ilo";
 import * as estat from "./sdmx/estat";
 //import * as insee from "./sdmx/insee";
@@ -57,17 +57,18 @@ export class SdmxIO {
         ""
       );
     }
+    if (s === "NOMIS") {
+      return new nomis.NOMISRESTServiceRegistry(
+        "NOMIS",
+        "http://www.nomisweb.co.uk/api",
+        "uid=0xad235cca367972d98bd642ef04ea259da5de264f"
+      );
+    }
     /*
         if (s === "KNOEMA") {
           return new knoema.Knoema("KNOEMA", "http://knoema.com/api/1.0/sdmx", "");
         }
-        if (s === "NOMIS") {
-          return new nomis.NOMISRESTServiceRegistry(
-            "NOMIS",
-            "http://www.nomisweb.co.uk/api",
-            "uid=0xad235cca367972d98bd642ef04ea259da5de264f"
-          );
-        }
+
         if (s === "OECD") {
           return new oecd.OECD(
             "OECD",

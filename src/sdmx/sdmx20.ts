@@ -991,6 +991,7 @@ export class Sdmx20StructureReaderTools {
   toTimeDimension(comps: structure.DataStructureComponents, dim: any) {
     const dim2: structure.TimeDimension = new structure.TimeDimension();
     const cs: structure.ConceptSchemeType = this.getConceptScheme(dim)!;
+    if(cs === undefined ) return undefined;
     const cl: structure.Codelist|undefined = this.getCodelist(dim);
     const con: structure.ConceptType|undefined = this.getConcept(cs!, dim);
     if (dim.getAttribute("conceptRef") !== null) {
@@ -1042,9 +1043,6 @@ export class Sdmx20StructureReaderTools {
       );
       dim2.setConceptIdentity(reference);
     } else {
-      alert(
-        "con is null cs=" + JSON.stringify(cs) + "con=" + JSON.stringify(con)
-      );
     }
     if (cl !== null) {
       const ttf: structure.TextFormatType|undefined = this.toTextFormatType(
@@ -1375,6 +1373,9 @@ export class Sdmx20StructureReaderTools {
       // this code looks through the structure's conceptschemes, and finds a concept
       // in the document that has the same ID as the conceptRef..
       // this is really all i can do with this situation :(
+        if(this.struct!.getStructures()!.getConcepts()==null||this.struct!.getStructures()!.getConcepts()===undefined){
+          return undefined;
+        }
       const css = this.struct!
         .getStructures()!
         .getConcepts()!

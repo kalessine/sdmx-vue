@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@types/bluebird-global": "^3.5.12",
     "@types/underscore": "^1.10.24",
     "@vueuse/core": "^4.0.8",
     "bluebird": "^3.7.2",

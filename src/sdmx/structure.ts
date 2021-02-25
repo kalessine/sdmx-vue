@@ -1600,7 +1600,7 @@ export class Structures implements interfaces.LocalRegistry {
   }
 
   findCodelist(ref: commonreferences.Reference): structure.Codelist|undefined {
-    if (this.codelists === undefined) return undefined;
+    if (this.codelists === undefined||this.codelists === null) return undefined;
     return this.codelists.findCodelistReference(ref);
   }
 
@@ -1622,7 +1622,7 @@ export class Structures implements interfaces.LocalRegistry {
   findConceptScheme(
     ref: commonreferences.Reference
   ): structure.ConceptSchemeType|undefined {
-    if (this.concepts === undefined) {
+    if (this.concepts === undefined||this.concepts=== null) {
       return undefined;
     }
     return this.concepts.findConceptSchemeReference(ref);
