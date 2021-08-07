@@ -1,9 +1,7 @@
-<template>
-<div v-if="model!=undefined&&renderComponent">
-<ol-map ref="map" :loadTilesWhileAnimating="true" :loadTilesWhileInteracting="true" style="width:600px;height:800px">
+<template style="width:100%;height:100%">
+<div style="width:800px;height:600px;">
+<ol-map ref="map" :loadTilesWhileAnimating="true" :loadTilesWhileInteracting="true" style="width:800px;height:600px">
     <ol-view ref="view" :center="center" :rotation="rotation" :zoom="zoom" :projection="projection" />
-    <ol-fullscreen-control />
-    <ol-mouseposition-control />
 
     <ol-overviewmap-control>
         <ol-tile-layer>
@@ -21,16 +19,16 @@
         </ol-style>
     </ol-interaction-select>-->
 
-    <ol-vector-layer>
+    <ol-vector-layer v-if="model!=undefined">
         <ol-source-vector>
-            <ol-feature v-for="id in model._featureIDs" :key="'multi'+id" :geometryOrProperties="{'id':id}">
+            <ol-feature v-for="id in model.featureIds" :key="'multi'+id" :geometryOrProperties="{'id':id}">
                 <ol-geom-multi-polygon :coordinates="getMultiPolygon(id)"></ol-geom-multi-polygon>
                 <ol-style>
                     <ol-style-fill :color="model.getColourForId(id).getHex()"></ol-style-fill>
                     <ol-style-stroke color="black" :width="0.5"></ol-style-stroke>
                 </ol-style>
             </ol-feature>
-            <ol-feature v-for="id in model._featureIDs" :key="'poly'+id" :geometryOrProperties="{'id':id}">
+            <ol-feature v-for="id in model.featureIds" :key="'poly'+id" :geometryOrProperties="{'id':id}">
                 <ol-geom-polygon :coordinates="getPolygon(id)"></ol-geom-polygon>
                 <ol-style>
                     <ol-style-fill :color="model.getColourForId(id).getHex()"></ol-style-fill>
@@ -44,9 +42,9 @@
     <ol-rotate-control />
     <ol-zoom-control />
     <ol-zoomslider-control />
-    <ol-zoomtoextent-control :extent="[23.906,42.812,46.934,34.597]" tipLabel="Fit to Turkey" />
+    <!--<ol-zoomtoextent-control :extent="[23.906,42.812,46.934,34.597]" tipLabel="Fit to Turkey" />-->
 
-    <ol-interaction-select @select="featureSelected" :condition="selectCondition">
+    <ol-interaction-select v-if="model!=undefined" @select="featureSelected" :condition="selectCondition">
         <ol-style>
             <ol-style-stroke color="yellow" :width="1"></ol-style-stroke>
             <ol-style-text v-if="model.selected!=undefined" :text="model.getDescriptionForId(model.selected)" :scale="2.0"></ol-style-text>
@@ -57,11 +55,12 @@
 
 </ol-map>
 </div>
+{{selectedDescription}}
 </template>
 
 <script>
 import { useStore } from "vuex";
-import { computed, ref, readonly, nextTick } from "vue";
+import { computed, ref, watch, nextTick } from "vue";
 import { onMounted, onUpdated, onUnmounted } from 'vue'
 import { Model } from '@/visual/model';
 import * as visual from '@/visual/visual';
@@ -77,18 +76,6 @@ export default {
         const store = useStore()
         const center = ref([34, 39.13])
         const model = ref(undefined);
-        const renderComponent = ref(true);
-        store.subscribe((mutation, state) => {
-        if (mutation.type === 'setModel'&&mutation.payload.md!=undefined) {
-            model.value = undefined;
-            nextTick(()=>{
-               model.value = mutation.payload.md; 
-               center.value = [model.value.centerLat,model.value.centerLon]
-            });
-            
-            }
-        });
-
         var getPolygon = function(id){
             let area = store.state.visual.findBindingByType("Area",0)
             let result = area.getPolygonWithMatchingId(id)
@@ -99,31 +86,16 @@ export default {
             let result = area.getMultiPolygonWithMatchingId(id)
             return result
         }
-        const forceRerender = function() {
-        // Remove my-component from the DOM
-        this.renderComponent = false;
-
-        this.$nextTick(() => {
-          // Add the component back in
-          this.renderComponent = true;
-        });
-      }
         const featureSelected = (event) => {
             if (event.selected.length == 1) {
                 model.value.selected=event.selected[0].getProperties().geometryOrProperties['id'];
+                selectedDescription.value = model.value.getDescriptionForId(model.value.selected);
             } else {
                 model.value.selected=undefined;
+                selectedDescription.value=" ";
             }
         }
-
-/*
-const featureMousedOver = (event) => {
-            if (event.selected.length == 1) {
-                //model.value.selected=event.selected[0].getProperties().geometryOrProperties['id'];
-            } else {
-            }
-        }
-*/
+        const selectedDescription = ref(" ");
         const projection = ref('EPSG:4326')
         const zoom = ref(4)
         const rotation = ref(0)
@@ -140,7 +112,17 @@ const featureMousedOver = (event) => {
         });
         onUnmounted(() => {
         });
-        return {
+        store.subscribe((mutation, state) => {
+        if (mutation.type === 'setModel'&&mutation.payload.md!=undefined) {
+            model.value = undefined;
+            nextTick(()=>{
+               model.value = mutation.payload.md; 
+               center.value = [model.value.centerLat,model.value.centerLon]
+               if(map.value!=null&&'updateSize' in map.value) {map.value.updateSize();}
+            });
+            }
+        });
+       return {
             center,
             projection,
             zoom,
@@ -153,7 +135,7 @@ const featureMousedOver = (event) => {
             getPolygon,
             getMultiPolygon,
             featureSelected,
-            renderComponent,forceRerender
+            selectedDescription
         }
     },
 }

@@ -35,6 +35,7 @@ import InputSwitch from 'primevue/inputswitch';
 import Calendar from 'primevue/calendar';
 import Chart from 'primevue/chart';
 import Visual from "./components/Visual.vue";
+import {Map,Layers,Sources,MapControls,Geometries,Styles,Interactions} from './vue3-olmap/vue3-ol';
 import "primevue/resources/themes/saga-blue/theme.css";
 import "primevue/resources/primevue.min.css";
 import "primeicons/primeicons.css";
@@ -49,6 +50,13 @@ const app = createApp({
 app
   .use(store)
   .use(PrimeVue)
+  .use(Map)
+  .use(Layers)
+  .use(Sources)
+  .use(MapControls)
+  .use(Geometries)
+  .use(Styles)
+  .use(Interactions)
   .component("Button", Button)
   .component("Dropdown", Dropdown)
   .component("TabView", TabView)

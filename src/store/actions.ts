@@ -148,6 +148,7 @@ export const actions: ActionTree<State, State> & Actions = {
 
   },
   async [ActionTypes.doRequery]({ state, commit }) {
+    state.visual.waitForResources();
     commit(MutationTypes.setDataMessage, { 'msg': undefined });
     let dataMessage = await state.visual.doQuery();
     commit(MutationTypes.setDataMessage, { 'msg': dataMessage });
@@ -198,9 +199,10 @@ export const actions: ActionTree<State, State> & Actions = {
     for (let i = 0; i < json.values.length; i++) {
       commit(MutationTypes.changeBindingClass, { 'b': bindings.defaultParseObjectToBinding(json.values[i], state.visual.getQueryable()!, dataStruct!)! });
     }
+    await state.visual.waitForResources();
     commit(MutationTypes.selectAdapter, { 'id':json.adapter });
     commit(MutationTypes.setDataMessage, { 'msg': undefined });
-    let dataMessage = await state.visual.doQuery();
+        let dataMessage = await state.visual.doQuery();
     commit(MutationTypes.setDataMessage, { 'msg': dataMessage });
     let md: model.Model | undefined = state.visual.createModel();
     commit(MutationTypes.setModel, { 'md': md });

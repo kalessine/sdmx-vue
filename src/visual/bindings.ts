@@ -1237,10 +1237,21 @@ export class BoundToArea extends BoundToDiscrete {
   public setTitle(s: string) {
     this.title = s;
   }
+  public async wait() {
+    if( this._geoJSONObject==undefined) {
+      throw new Error("No GeoJSON!");
+    }
+    if( 'features' in this._geoJSONObject ) {
+      return;
+    }
+    await this._geoJSONObject;
+  }
   set geoJSON(s: string|undefined) {
     this._geoJSON = s;
-    makeRequest({ url: this._geoJSON, method: "GET" }).then(
+    this._geoJSONObject = makeRequest({ url: this._geoJSON, method: "GET" });
+    this._geoJSONObject=this._geoJSONObject.then(
       (gj: any) => {
+        console.log("Downloaded!");
         this._geoJSONObject = JSON.parse(gj);
       }
     )
@@ -1470,6 +1481,7 @@ export function defaultSaveBindingToObject(b: BoundTo): any {
     o.title = ba.getTitle();
     o.matchField = ba.getMatchField();
     o.area = ba.getAreaField();
+    o.geoJSON = ba.geoJSON;
   } else if (o.boundTo === BoundTo.BOUND_DISCRETE_DROPDOWN) {
     let ba:BoundToDropdown = b as BoundToDropdown;
     o.flat = ba.isFlat();
@@ -1517,6 +1529,8 @@ export function defaultSaveBindingToObject(b: BoundTo): any {
     let ba:BoundToSlider = b as BoundToSlider;
   } else if( o.boundTo === BoundTo.BOUND_DISCRETE_SINGLE) {
     let ba:BoundToSingleValue = b as BoundToSingleValue;
+  } else if( o.boundTo === BoundTo.BOUND_DISCRETE_ALL) {
+    let ba:BoundToAllValues = b as BoundToAllValues
   }
   return o;
 }
@@ -1528,6 +1542,8 @@ export function defaultParseObjectToBinding(
   let b:BoundTo|undefined = undefined;
   if (o.boundTo === BoundTo.BOUND_DISCRETE_AREA) {
     const ba = new BoundToArea(q, dataStruct, o.concept);
+    ba.geoJSON = o.geoJSON;
+    ba.geoJSONObject;
     ba.setFlat(o.flat);
     ba.setLevel(o.level);
     ba.setDensity(o.density);
@@ -1538,6 +1554,7 @@ export function defaultParseObjectToBinding(
     ba.setTitle(o.title);
     ba.setMatchField(o.matchField);
     ba.setAreaField(o.area);
+    
     b = ba;
   } else if (o.boundTo === BoundTo.BOUND_DISCRETE_DROPDOWN) {
     b = new BoundToDropdown(q, dataStruct, o.concept);
@@ -1601,8 +1618,13 @@ export function defaultParseObjectToBinding(
     b = new BoundToSeries(q, dataStruct, o.concept);
   } else if (o.boundTo === BoundTo.BOUND_DISCRETE_SLIDER) {
     b = new BoundToSlider(q, dataStruct, o.concept);
+  } else if (o.boundTo === BoundTo.BOUND_DISCRETE_ALL) {
+    b = new BoundToAllValues(q,dataStruct,o.concept);
   }
-  if(b===undefined) throw new Error("Undefined binding parse!"+o.typeid);
+  if(b===undefined) {
+    console.log(b);
+    throw new Error("Undefined binding parse!"+o.typeid);
+  }
   return b;
 }
 

@@ -441,7 +441,7 @@ export class MapModel implements Model {
   private _matchField:string = "ID";
   private _centerLat: number = 133.0361;
   private _centerLon: number = -24.28;
-  private _featureIDs:Array<string> = [];
+  private _featureIds:Array<string> = [];
   private _featureNames:Array<string> = [];
   private _featureDescs:Array<string> = [];
   private _values:Array<number> = [];
@@ -458,7 +458,7 @@ export class MapModel implements Model {
     this.clear();
   }
   get featureIds():Array<string> {
-    return this._featureIDs;
+    return this._featureIds;
   }
   get featureNames():Array<string> {
     return this._featureNames;
@@ -490,10 +490,10 @@ export class MapModel implements Model {
   public addFeature(id:string,name:string,val:number,desc:string,ignoreTotal:boolean) {
       if (this.ignoreTotal) {
           if (name != null && !(name.toLowerCase().indexOf("total") != -1)) {
-              this.featureIds.push(id);
-              this.featureNames.push(name);
-              this.values.push(val);
-              this.featureDescs.push(desc);
+              this._featureIds.push(id);
+              this._featureNames.push(name);
+              this._values.push(val);
+              this._featureDescs.push(desc);
               if (this.min == undefined || val < this.min) {
                   this.min=val;
               }
@@ -502,10 +502,10 @@ export class MapModel implements Model {
               }
           }
       } else {
-        this.featureIds.push(id);
-        this.featureNames.push(name);
-        this.values.push(val);
-        this.featureDescs.push(desc);
+        this._featureIds.push(id);
+        this._featureNames.push(name);
+        this._values.push(val);
+        this._featureDescs.push(desc);
         if (this.min == undefined || val < this.min) {
             this.min=val;
         }
@@ -518,10 +518,10 @@ export class MapModel implements Model {
     return this._selected==undefined?false:this._selected==id?true:false;
   }
   public getColourForId(id:string):Color { 
-    return this.getColour(this._values[this._featureIDs.indexOf(id)]);
+    return this.getColour(this._values[this._featureIds.indexOf(id)]);
   }
   public getDescriptionForId(id:string):string { 
-    return this._featureDescs[this._featureIDs.indexOf(id)];
+    return this._featureDescs[this._featureIds.indexOf(id)];
   }
   public getColour(val:number):Color {
     if(this.min===undefined||this.max===undefined){
@@ -623,7 +623,7 @@ export class MapModel implements Model {
   }
   clear():void{
     this._matchField = "ID";
-    this._featureIDs = [];
+    this._featureIds = [];
     this._featureNames = [];
     this._featureDescs = [];
     this._values = [];

@@ -73,6 +73,13 @@ export class Visual {
     this._loc = "en";
     this._waitForPromises = [];
   }
+  public async waitForResources() {
+    console.log("Checking for wait");
+     if(this.findBindingByType("Area",0)!=undefined){
+       console.log("Waiting");
+       await (this.findBindingByType("Area",0) as bindings.BoundToArea).wait();
+     }
+  }
 
   set dataservice(s: string | undefined) {
     this._dataservice = s;

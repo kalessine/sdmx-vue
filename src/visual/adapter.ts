@@ -276,6 +276,7 @@ export class CubeWalkUtils {
           .getQueryable()!
           .getRemoteRegistry()!
           .getLocalRegistry(),
+
         visual.getQuery()!.getDataStructure()!,
         percentOf.getConcept(),
         percentOf.getPercentOfId()!);
@@ -288,7 +289,6 @@ export class CubeWalkUtils {
                     k.getDict().setValue(key, singles.getDict().getValue(key));
                 });
                 k.setComponent(percentOf.getConcept(), item.getId()?.toString());
-                console.log(k);
                 var obs: sdmxdata.CubeObs|undefined = cube.findCubeObs(k);
                 if (obs == undefined) {
                     //console.log("Obs is null");
@@ -296,11 +296,14 @@ export class CubeWalkUtils {
                 } else {
                     //console.log(obs);
                     // concept should be OBS_VALUE
-                    var percent = parseFloat(dim.getValue()) / parseFloat(obs.getValue(concept));
-                    percent *= 100;
+                    var percent:number = parseFloat(dim.getValue()) / parseFloat(obs.getValue(concept));
+                    percent = percent *100;
                     // Override OBS_VALUE
-                    multiples.setComponent(concept, percent.toString());
+                    multiples.setComponent(concept, percent);
                     //console.log("Percent="+percent);
+                    multiples.setAttribute("RAW_VALUE",dim.getValue());
+                    multiples.setAttribute("PERCENT_OF_THIS_VALUE",obs.getValue(concept));
+                    multiples.setAttribute("PERCENT",percent);
                 }
             } else {
             //console.log("PercentOfPoint");
@@ -700,9 +703,14 @@ export class OpenlayersMapAdapter implements Adapter {
     let id: string = structure.NameableType.toIDString(area);
     let val: string | undefined = visual.findBindingByType("Colour", 0)?.getConcept();
     let v1 = parseFloat(key.getComponent(val!));
-    let desc = id + "\n";
+    let desc = btarea.getMatchField() +": "+id+ "\n";
     desc = desc + structure.NameableType.toString(area) + "\n";
-    desc = desc + v1;
+    if(visual.getPercentOf()==undefined){
+       desc = desc + v1;
+    }else{
+      desc = desc + v1.toFixed(2)+"%"+"\n"; 
+      desc = desc + key.getAttribute("RAW_VALUE") + " / "+ key.getAttribute("PERCENT_OF_THIS_VALUE");
+    }
     model.addFeature(id, structure.NameableType.toString(area), v1, desc, false);
   }
 

@@ -1,8 +1,8 @@
 <template>
 <div display="block" style="width:100%;height:100%">
-<div v-if="vis.adapter==1000" id="visual"><Sparkline /></div>
-<div v-if="vis.adapter==1001" id="visual"><Sparkline /></div>
-<div v-if="vis.adapter==2000" id="visual" :key="updateKey"><OpenlayersMap /></div>
+<div v-if="vis.adapter==1000" id="visual1000"><Sparkline /></div>
+<div v-if="vis.adapter==1001" id="visual1001"><Sparkline /></div>
+<div v-if="vis.adapter==2000" id="visual2000" ><OpenlayersMap /></div>
 <div v-for="binding in bindings" :key="binding">
     <SelectDropdown v-if="binding.boundTo==10" :concept="binding.concept"/>
 </div>

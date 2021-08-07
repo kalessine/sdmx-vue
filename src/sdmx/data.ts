@@ -2141,7 +2141,6 @@ export class Cube {
         .getDimensions().length;
       i++
     ) {
-      console.log(dim);
       dim = dim.getSubCubeDimension(
         structure.NameableType.toIDString(
           key.getComponent(dim.getSubDimension()!)
