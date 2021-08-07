@@ -33,5 +33,6 @@ export enum ActionTypes {
     selectAdapter = 'selectAdapter',
     doRequery = 'doRequery',
     doWalk = 'doWalk',
-    loadJSON = 'loadJSON'
+    loadJSON = 'loadJSON',
+    forceUpdate = 'forceUpdate'
   }

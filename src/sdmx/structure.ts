@@ -169,20 +169,22 @@ export class NameableType extends IdentifiableType {
     }
   }
 
-  public static toString(named: NameableType): string {
+  public static toString(named1: NameableType|string): string {
     const loc: string = Language.Language.getLanguage();
-    if (named === undefined) {
+    if (named1 === undefined) {
       // console.log("Named is null");
       return "";
     }
+    if( typeof(named1)=='string' ) return named1 as string;
+    let named:NameableType = named1 as NameableType;
     if (named === undefined) return "";
-    if (named.findDescription === undefined) {
+    if ((named as NameableType).findDescription === undefined) {
       // Obviously not a NameableType :(
       return "";
     }
-    const desc: common.Description|undefined = named.findDescription(loc);
+    const desc: common.Description|undefined = (named as NameableType).findDescription(loc);
     if (desc === undefined) {
-      const name: common.Name|undefined = named.findName(loc);
+      const name: common.Name|undefined = (named as NameableType).findName(loc);
       if (name === undefined) {
         return named.getId()!.toString();
       }
@@ -191,11 +193,12 @@ export class NameableType extends IdentifiableType {
     return config.SdmxConfig.truncateName(desc.getText());
   }
 
-  public static toStringWithLocale(named: NameableType, loc: string): string {
+  public static toStringWithLocale(named: NameableType|string, loc: string): string {
     // if (concept.equals("FREQ")) {
     //    ItemType code2 = getCode();
     //    System.out.println("FREQ Code=" + code2);
     // }
+    if( typeof(named)==='string' ) return named;
     if (named === undefined) {
       return "";
     }
@@ -210,14 +213,14 @@ export class NameableType extends IdentifiableType {
     return config.SdmxConfig.truncateName(name.getText());
   }
 
-  public static toIDString(named: NameableType): string {
+  public static toIDString(named: NameableType|string): string {
     if (named!=undefined&&named instanceof NameableType) {
       return named.getId()!.toString();
     } else {
       if (named !== null) {
         return named;
       } else {
-        return "";
+        return named as string;;
       }
     }
   }

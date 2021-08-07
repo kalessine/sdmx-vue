@@ -9,7 +9,7 @@ import { computed, ComputedRef, ref, Ref } from "vue";
 import * as bindings from "../visual/bindings";
 import * as structure from "../sdmx/structure";
 export default {
-  setup(props:{concept:string}) {
+  setup(props:any) {
     const store = useStore();
     const binding:ComputedRef<bindings.BoundTo> = computed(()=>{
       return store.state.visual.findBindingByConceptId(props.concept);
@@ -18,11 +18,21 @@ export default {
       return binding.value.getConceptName();
     });
     const items = computed(()=>{
-      if( binding.value.clientSide){
-         return store.state.visual.query.getQueryKey(props.concept).getWalkedValues().map((item:structure.ItemType)=>{
-        return {'name':structure.NameableType.toString(item), 'code':item.getId()?.toString()};
-      });
+
+      if( binding.value.boundTo==20){
+        // Time DropDown
+        return store.state.visual.query.getQueryKey(props.concept).getWalkedValues().map((item:string)=>{
+            // For Time drop downs, 'item' may be a string...
+            return {'name':item, 'code':item};
+            });
       }
+      if( binding.value.clientSide){
+        return store.state.visual.query.getQueryKey(props.concept).getWalkedValues().map((item:structure.ItemType)=>{
+            // For Time drop downs, 'item' may be a string...
+            return {'name':structure.NameableType.toString(item), 'code':structure.NameableType.toIDString(item)};
+            });
+      }
+
       return binding.value.getCodelist().getItems().map((item:structure.ItemType)=>{
         return {'name':structure.NameableType.toString(item), 'code':item.getId()?.toString()};
       });
@@ -33,7 +43,7 @@ export default {
         return store.state.visual.query!.getQueryKey(props.concept).getValue();
       },
       set: (v : string) => {
-        store.state.visual.query!.getQueryKey(props.concept).clear();
+        //store.state.visual.query!.getQueryKey(props.concept).clear();
         store.state.visual.query!.getQueryKey(props.concept).setValue(v);
         if(binding.value.requery){
            store.dispatch("doRequery").then(()=>{

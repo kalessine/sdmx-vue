@@ -1103,9 +1103,21 @@ class Quarter implements RegularTimePeriod {
 
     // find the Q and the integer following it (remove both from the
     // string)...
+    let q = false;
     let i = s.indexOf("Q");
-    if (i == -1) {
-      throw new Error("Quarter.parseQuarter(string): missing Q.");
+    if(i!==-1){q=true;}
+    if (i === -1) {
+      i = s.indexOf("-");
+      if( i === -1 ) {
+        i = s.indexOf(" ");
+        if( i === -1 ) {
+          i = s.indexOf("/");
+        }
+      }
+    }
+    if(i===-1) {
+      throw new Error(
+        "Quarter.parseQuarter(string): Can't find delimiter.");
     }
 
     if (i == (s.length - 1)) {
@@ -1113,9 +1125,10 @@ class Quarter implements RegularTimePeriod {
         "Quarter.parseQuarter(string): Q found at end of string.");
     }
 
-    let qstr: string = s.substring(i + 1, i + 2);
+    let qstr: string = s.substring(i + 1, s.length);
+    console.log(qstr);
     let quarter: number = parseInt(qstr);
-    let remaining = s.substring(0, i) + s.substring(i + 2, s.length);
+    let remaining = s.substring(0, i);
 
     // replace any / , or - with a space
     remaining = remaining.replace('/', ' ');
@@ -1124,6 +1137,14 @@ class Quarter implements RegularTimePeriod {
 
     // parse the string...
     let year: Year = Year.parseYear(remaining.trim());
+    if(!q){
+      switch(quarter){
+        case 1:quarter=1;break;
+        case 4:quarter=2;break;
+        case 7:quarter=3;break;
+        case 10:quarter=4;break;
+      }
+    }
     let result: Quarter = new Quarter(quarter, year.getYear());
     return result;
 

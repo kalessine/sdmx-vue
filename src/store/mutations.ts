@@ -43,6 +43,7 @@ export type Mutations<S = State> = {
   [MutationTypes.setDataMessage](state: S, payload: {msg:message.DataMessage|undefined}): void  
   [MutationTypes.createModel](state: S, payload: {}): void  
   [MutationTypes.walk](state: S, payload: {}): void  
+  [MutationTypes.forceUpdate](state: S, payload: {}): void  
 }
 export const mutations: Mutations = {
   [MutationTypes.connect](state:State, payload:{service:string;}): void {
@@ -115,7 +116,11 @@ export const mutations: Mutations = {
     
   },
   [MutationTypes.walk](state:State, payload:{}): void {
+  },
+  [MutationTypes.forceUpdate](state:State, payload:{}): void {
+    state.updateKey=state.updateKey+1;
   }
+
 }
 /*
 export default {

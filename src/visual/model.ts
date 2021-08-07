@@ -26,6 +26,9 @@ import * as time from "../sdmx/time";
 import * as structure from "../sdmx/structure";
 import { Visual } from "./visual";
 import { BoundToSeries } from "./bindings";
+import Color from '../Color';
+import { OlHTMLAttributes } from "vue";
+import { isRegExp } from "underscore";
 
 export interface Model {
   hasStatus(): boolean;
@@ -431,5 +434,205 @@ export class SeriesSparklineModel implements Model {
 
   set latest(d: number|undefined) {
     this._latest = d;
+  }
+  
+}
+export class MapModel implements Model {
+  private _matchField:string = "ID";
+  private _centerLat: number = 133.0361;
+  private _centerLon: number = -24.28;
+  private _featureIDs:Array<string> = [];
+  private _featureNames:Array<string> = [];
+  private _featureDescs:Array<string> = [];
+  private _values:Array<number> = [];
+  private _minColour:Color = new Color("#000");
+  private _maxColour:Color = new Color("#fff");
+  private _min:number|undefined = undefined;
+  private _max:number|undefined = undefined;
+  private _zeroOrigin:boolean = true;
+  private _density:boolean = true;
+  private _ignoreTotal: boolean = false;
+  private _selected: string|undefined = undefined;
+
+  public constructor() {
+    this.clear();
+  }
+  get featureIds():Array<string> {
+    return this._featureIDs;
+  }
+  get featureNames():Array<string> {
+    return this._featureNames;
+  }
+  get featureDescs():Array<string>{
+    return this._featureDescs;
+  }
+  get values():Array<number>{
+    return this._values;
+  }
+  get selected():string|undefined{
+    return this._selected;
+  }
+  set selected(s:string|undefined){
+    this._selected=s;
+  }
+  get centerLon():number{
+    return this._centerLon;
+  }
+  set centerLon(s:number){
+    this._centerLon=s;
+  }
+  get centerLat():number{
+    return this._centerLat;
+  }
+  set centerLat(s:number){
+    this._centerLat=s;
+  }
+  public addFeature(id:string,name:string,val:number,desc:string,ignoreTotal:boolean) {
+      if (this.ignoreTotal) {
+          if (name != null && !(name.toLowerCase().indexOf("total") != -1)) {
+              this.featureIds.push(id);
+              this.featureNames.push(name);
+              this.values.push(val);
+              this.featureDescs.push(desc);
+              if (this.min == undefined || val < this.min) {
+                  this.min=val;
+              }
+              if (this.max == undefined || val > this.max) {
+                  this.max=val;
+              }
+          }
+      } else {
+        this.featureIds.push(id);
+        this.featureNames.push(name);
+        this.values.push(val);
+        this.featureDescs.push(desc);
+        if (this.min == undefined || val < this.min) {
+            this.min=val;
+        }
+        if (this.max == undefined || val > this.max) {
+            this.max=val;
+        }
+      }
+  }
+  public isSelected(id:string) {
+    return this._selected==undefined?false:this._selected==id?true:false;
+  }
+  public getColourForId(id:string):Color { 
+    return this.getColour(this._values[this._featureIDs.indexOf(id)]);
+  }
+  public getDescriptionForId(id:string):string { 
+    return this._featureDescs[this._featureIDs.indexOf(id)];
+  }
+  public getColour(val:number):Color {
+    if(this.min===undefined||this.max===undefined){
+       throw new Error("Min and max undefined");
+    }
+    var ratio = (val-this.min)/(this.max-this.min);
+    if(isNaN(ratio)){ratio=1;}
+    if(ratio>1)ratio=1;
+    if(ratio<0)ratio=0;
+    return this.minColour.combine(this.maxColour,ratio);
+  }
+  /**
+   * @return the matchField
+   */
+  get matchField():string {
+      return this._matchField;
+  }
+  set matchField(s:string) {
+    this._matchField=s;
+  }
+
+  set min(min:number|undefined) {
+      this._min = min;
+  }
+  
+  get min():number|undefined {
+    return this._min;
+  }
+
+  get max():number|undefined {
+      return this._max;
+  }
+
+  set ignoreTotal(ig:boolean) {
+    this._ignoreTotal = ig;
+  }
+
+  get ignoreTotal():boolean {
+     return this._ignoreTotal;
+  }
+
+  /**
+   * @param max the max to set
+   */
+  set max(max:number|undefined) {
+      this._max = max;
+  }
+  get minColour():Color {
+      return this._minColour;
+  }
+
+  /**
+   * @param minColour the minColour to set
+   */
+  set minColour(minColour:Color) {
+      this._minColour = minColour;
+  }
+
+  /**
+   * @return the maxColour
+   */
+  get maxColour():Color {
+      return this._maxColour;
+  }
+
+  /**
+   * @param maxColour the maxColour to set
+   */
+  set maxColour(maxColour:Color) {
+      this._maxColour = maxColour;
+  }
+
+  /**
+   * @return the zeroOrigin
+   */
+  get zeroOrigin() {
+      return this._zeroOrigin;
+  }
+
+  set zeroOrigin(zeroOrigin:boolean) {
+      this._zeroOrigin = zeroOrigin;
+      if( this._zeroOrigin ) {
+          this.min = 0.0;
+      }
+  }
+
+  get density():boolean {
+      return this._density;
+  }
+
+  set density(d:boolean) {
+      this._density = d;
+  }
+  hasStatus(): boolean{
+    return false;
+  }
+  finish(v:Visual):void{
+
+  }
+  clear():void{
+    this._matchField = "ID";
+    this._featureIDs = [];
+    this._featureNames = [];
+    this._featureDescs = [];
+    this._values = [];
+    this._minColour = new Color("#000");
+    this._maxColour = new Color("#fff");
+    this._min = undefined;
+    this._max = undefined;
+    this._zeroOrigin = true;
+    this._density = true;
+    this._ignoreTotal = false;
   }
 }

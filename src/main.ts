@@ -26,6 +26,10 @@ SOFTWARE.
 import { createApp, h } from "vue";
 import App from "./App.vue";
 import PrimeVue from "primevue/config";
+import {Map,Layers,Sources,MapControls,Geometries,Styles,Interactions} from './vue3-olmap/vue3-ol';
+import 'vue3-openlayers/dist/vue3-openlayers.css';
+
+
 import store from "./store";
 
 store.dispatch('loadJSON',JSON.parse('{ "dataservice": "ABS3", "dataflow_agency": "ABS", "dataflow_id": "ALC", "dataflow_version": "1.0.0", "dataflow_name": "en", "dataflow_name_lang": "Apparent Consumption of Alcohol, Australia", "datastructure_agency": "ABS", "datastructure_id": "ALC", "datastructure_version": "1.0.0", "bindings": [ { "boundTo": 10, "concept": "TYP" }, { "boundTo": 10, "concept": "MEA" }, { "boundTo": 10, "concept": "BEVT" }, { "boundTo": 14, "concept": "SUB", "defaultBindingValues": [] }, { "boundTo": 26, "concept": "FREQUENCY", "defaultBindingValues": [ "A" ] } ], "time": { "boundTo": 18, "concept": "TIME_PERIOD", "defaultBindingValues": [] }, "values": [ { "boundTo": 2, "concept": "OBS_VALUE", "defaultBindingValues": [] } ], "adapter": 1001 }'));
@@ -37,6 +41,7 @@ import Dropdown from "primevue/dropdown";
 import TabView from "primevue/tabview";
 import TabPanel from 'primevue/tabpanel';
 import InputSwitch from 'primevue/inputswitch';
+import InputText from 'primevue/inputtext';
 import Calendar from 'primevue/calendar';
 import Chart from 'primevue/chart';
 import "primevue/resources/themes/saga-blue/theme.css";
@@ -50,11 +55,20 @@ const app = createApp({
 app
   .use(store)
   .use(PrimeVue)
+  .use(Map)
+  .use(Layers)
+  .use(Sources)
+  .use(MapControls)
+  .use(Geometries)
+  .use(Styles)
+  .use(Interactions)
   .component("Button", Button)
   .component("Dropdown", Dropdown)
   .component("TabView", TabView)
   .component("TabPanel", TabPanel)
   .component("InputSwitch", InputSwitch)
+  .component("InputText", InputText)
   .component("Calendar", Calendar)
   .component("Chart", Chart)
+Map.install(app);
 app.mount("#app");

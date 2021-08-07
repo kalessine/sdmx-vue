@@ -82,7 +82,7 @@ export const getters: GetterTree<State, State> & Getters = {
     return state.visual.currentBinding;
   },
   currentBindingItems: (state:State, _getters:Getters, rootState:State):Array<structure.ItemType>|undefined => {
-    if( state.visual.currentBinding!=undefined&&state.visual.currentBinding.isDiscrete()) {
+    if( state.visual.currentBinding!=undefined&&state.visual.currentBinding.isDiscrete()&&state.visual.currentBinding.getCodelist()!=undefined) {
        return state.visual.currentBinding.getCodelist().getItems();
     }else {
       return undefined;

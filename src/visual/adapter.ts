@@ -26,42 +26,44 @@ import * as sdmxdata from "../sdmx/data";
 import * as structure from "../sdmx/structure";
 import * as collections from "typescript-collections";
 import * as visual from "../visual/visual";
-import * as model from "../visual/model";
+import * as models from "../visual/model";
 import * as bindings from "../visual/bindings";
 import * as sdmxtime from "../sdmx/time";
+import { vModelSelect } from "vue";
+import Color from '../Color';
 export interface Adapter {
   getId(): number;
   getName(): string;
   canCreateModelFromVisual(v: visual.Visual): boolean;
-  createModel(v: visual.Visual, cube: sdmxdata.Cube|undefined): model.Model;
+  createModel(v: visual.Visual, cube: sdmxdata.Cube | undefined): models.Model;
   updateModel(
     v: visual.Visual,
     cube: sdmxdata.Cube,
-    model: model.Model
-  ): model.Model;
+    model: models.Model
+  ): models.Model;
   setSingleValues(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey
   ): void;
   addSingleDataPoint(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey
   ): void;
   addCrossSectionalDataPoint(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey,
     crossSections: collections.Dictionary<string, string>
   ): void;
 }
 export class CubeWalkUtils {
-  visitRoot(
+  static visitRoot(
     cube: sdmxdata.Cube,
     visual: visual.Visual,
     adapter: Adapter,
-    model: model.Model
+    model: models.Model
   ) {
     const singles = new sdmxdata.PartialKey();
     const multiples = new sdmxdata.PartialKey();
@@ -99,7 +101,9 @@ export class CubeWalkUtils {
           adapter,
           model,
           singles,
-          multiples
+          multiples, visual
+            .getQuery()!
+            .getQueryKey(current.getSubDimension())!
         );
       }
     }
@@ -110,25 +114,24 @@ export class CubeWalkUtils {
     visual: visual.Visual,
     current: sdmxdata.CubeDimension,
     adapter: Adapter,
-    model: model.Model,
+    model: models.Model,
     singles: sdmxdata.PartialKey,
-    multiples: sdmxdata.PartialKey
+    multiples: sdmxdata.PartialKey,
+    queryKey: sdmxdata.QueryKey
   ) {
     // console.log("visit");
     const concept: string = current.getConcept();
     const val: string = current.getValue();
     // System.out.println("Visit:"+concept+":"+val);
     const bd: bindings.BoundTo = visual.findBinding(concept)!;
+    let subDims = current.listSubDimensions();
     if (
-      visual
-        .getQuery()!
-        .getQueryKey(bd.getConcept())!
+      queryKey
         .containsValue(val) ||
       bd.isWalkAll()
     ) {
-      const itm: structure.ItemType = visual
-        .getQuery()!
-        .getQueryKey(concept)!
+
+      const itm: structure.ItemType = queryKey
         .getItemScheme()!
         .findItemString(val)!;
       if (bd.expectValues() === 1) {
@@ -137,33 +140,37 @@ export class CubeWalkUtils {
         multiples.setComponent(concept, itm);
       }
     }
-    for (let i = 0; i < current.listSubDimensions().length; i++) {
-      const inner: sdmxdata.CubeDimension = current.listSubDimensions()[i];
+    for (let i = 0; i < subDims.length; i++) {
+      const inner: sdmxdata.CubeDimension = subDims[i];
       const innerbd: bindings.BoundTo = visual.findBinding(inner.getConcept())!;
       visual.addWalkedValue(innerbd.getConcept(), inner.getValue());
     }
-    for (let i = 0; i < current.listSubDimensions().length; i++) {
-      const inner: sdmxdata.CubeDimension = current.listSubDimensions()[i];
-      const innerbd: bindings.BoundTo = visual.findBinding(inner.getConcept())!;
+    for (let i = 0; i < subDims.length; i++) {
+      const inner: sdmxdata.CubeDimension = subDims[i];
+      //const innerbd: bindings.BoundTo = visual.findBinding(inner.getConcept())!;
+      const queryKey2 = visual.getQuery()?.getQueryKey(inner.getConcept())!;
       if (inner instanceof sdmxdata.TimeCubeDimension) {
-        CubeWalkUtils.visitTime(
-          cube,
-          visual,
-          inner as sdmxdata.TimeCubeDimension,
-          adapter,
-          model,
-          singles,
-          multiples
-        );
+        if (
+          queryKey2
+            .isWalkAll() ||
+          queryKey2
+            .containsValue(inner.getValue())
+        ) {
+          CubeWalkUtils.visitTime(
+            cube,
+            visual,
+            inner as sdmxdata.TimeCubeDimension,
+            adapter,
+            model,
+            singles,
+            multiples, queryKey2
+          );
+        }
       } else {
         if (
-          visual
-            .getQuery()!
-            .getQueryKey(innerbd.getConcept())!
+          queryKey2
             .isWalkAll() ||
-          visual
-            .getQuery()!
-            .getQueryKey(innerbd.getConcept())!
+          queryKey2
             .containsValue(inner.getValue())
         ) {
           CubeWalkUtils.visit(
@@ -173,7 +180,8 @@ export class CubeWalkUtils {
             adapter,
             model,
             singles,
-            multiples
+            multiples,
+            queryKey2
           );
         }
       }
@@ -185,9 +193,10 @@ export class CubeWalkUtils {
     visual: visual.Visual,
     dim: sdmxdata.TimeCubeDimension,
     adapter: Adapter,
-    model: model.Model,
+    model: models.Model,
     singles: sdmxdata.PartialKey,
-    multiples: sdmxdata.PartialKey
+    multiples: sdmxdata.PartialKey,
+    queryKey: sdmxdata.QueryKey
   ) {
     const concept: string = dim.getConcept();
     const val: string = dim.getValue();
@@ -218,14 +227,14 @@ export class CubeWalkUtils {
     visual: visual.Visual,
     dim: sdmxdata.CubeObservation,
     adapter: Adapter,
-    model: model.Model,
+    model: models.Model,
     singles: sdmxdata.PartialKey,
     multiples: sdmxdata.PartialKey
   ) {
     // console.log("visitObs");
     // System.out.println("Visit:" + dim.getConcept());
     if (dim.getCrossSection() != undefined) {
-      const crossSection:bindings.BoundToCrossSection = visual.findBinding(dim.getConcept())!;
+      const crossSection: bindings.BoundToCrossSection = visual.findBinding(dim.getConcept())!;
       // if (!visual.getQuery().getQueryKey(dim.getConcept())) {
       //  return
       // }
@@ -253,24 +262,24 @@ export class CubeWalkUtils {
             .getQueryable()!
             .getRemoteRegistry()!
             .getLocalRegistry(),
-          visual.getQuery()!.getDataStructue()!,
+          visual.getQuery()!.getDataStructure()!,
           att.getConcept(),
           att.getValue()
         )
       );
     }
     // console.log(cube);
-    /*
-        if (visual.getPercentOf() != null) {
-            //console.log("Percent OF!");
-            var percentOf: bindings.BoundToDiscrete = visual.getPercentOf();
-            //console.log("Single Value:");
-            //console.log(singles.getComponent(percentOf.getConcept()));
-            //console.log("Mutliple Values");
-            //console.log(multiples.getComponent(percentOf.getConcept()));
-            //console.log("PercentOf");
-            //console.log(percentOf.getPercentOfItemType());
-            if (percentOf.getPercentOfItemType() != null && percentOf.getPercentOfItemType() != singles.getComponent(percentOf.getConcept())) {
+    var percentOf: bindings.BoundToDiscrete|undefined = visual.getPercentOf();
+    if (percentOf!=undefined) {
+      let item  = sdmxdata.ValueTypeResolver.resolveCode(
+        visual
+          .getQueryable()!
+          .getRemoteRegistry()!
+          .getLocalRegistry(),
+        visual.getQuery()!.getDataStructure()!,
+        percentOf.getConcept(),
+        percentOf.getPercentOfId()!);
+            if (item != undefined && item != singles.getComponent(percentOf.getConcept())) {
                 var k: sdmxdata.FullKey = new sdmxdata.FullKey();
                 multiples.getDict().keys().forEach(function (key) {
                     k.getDict().setValue(key, multiples.getDict().getValue(key));
@@ -278,10 +287,10 @@ export class CubeWalkUtils {
                 singles.getDict().keys().forEach(function (key) {
                     k.getDict().setValue(key, singles.getDict().getValue(key));
                 });
-                k.setComponent(percentOf.getConcept(), percentOf.getPercentOfItemType());
-                //console.log(k);
-                var obs: sdmxdata.CubeObs = cube.findCubeObs(k);
-                if (obs == null) {
+                k.setComponent(percentOf.getConcept(), item.getId()?.toString());
+                console.log(k);
+                var obs: sdmxdata.CubeObs|undefined = cube.findCubeObs(k);
+                if (obs == undefined) {
                     //console.log("Obs is null");
                     return;
                 } else {
@@ -299,7 +308,6 @@ export class CubeWalkUtils {
                 return;
             }
         }
-        */
     adapter.setSingleValues(visual, model, singles);
     adapter.addSingleDataPoint(visual, model, multiples);
   }
@@ -320,11 +328,11 @@ export class AdapterRegistrySingleton {
     // Do Nothing
   }
 
-  static findAdapter(n: number):Adapter {
+  static findAdapter(n: number): Adapter {
     for (let i = 0; i < this.adapters.length; i++) {
       if (this.adapters[i].getId() === n) return this.adapters[i];
     }
-    throw new Error("Adapter not found:"+n);
+    throw new Error("Adapter not found:" + n);
   }
 }
 
@@ -340,19 +348,19 @@ export function adapter2Object(ad: Adapter) {
 
 export class SparklineAdapter implements Adapter {
   private id = 1000;
-  private singleValues: sdmxdata.PartialKey|undefined = undefined;
+  private singleValues: sdmxdata.PartialKey | undefined = undefined;
   public getId() {
     return this.id;
   }
-  public createModel(visual: visual.Visual, cube: sdmxdata.Cube): model.Model {
-    return this.updateModel(visual, cube, new model.SparklineModel());
+  public createModel(visual: visual.Visual, cube: sdmxdata.Cube): models.Model {
+    return this.updateModel(visual, cube, new models.SparklineModel());
   }
 
   public updateModel(
     visual: visual.Visual,
     cube: sdmxdata.Cube,
-    model: model.SparklineModel
-  ): model.Model {
+    model: models.SparklineModel
+  ): models.Model {
     /*
     let min: number = null
     let  max: number = null
@@ -363,8 +371,7 @@ export class SparklineAdapter implements Adapter {
     console.log(visual);
     model.setXLabel(visual.findBindingByType("X", 0)!.getConceptName());
     model.setYLabel(visual.findBindingByType("Y", 0)!.getConceptName());
-    const cu: CubeWalkUtils = new CubeWalkUtils();
-    cu.visitRoot(cube, visual, this, model);
+    CubeWalkUtils.visitRoot(cube, visual, this, model);
     model.finish(visual);
     return model;
   }
@@ -388,7 +395,7 @@ export class SparklineAdapter implements Adapter {
 
   public setSingleValues(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey
   ): void {
     this.singleValues = key;
@@ -396,7 +403,7 @@ export class SparklineAdapter implements Adapter {
 
   public addSingleDataPoint(
     visual: visual.Visual,
-    model: model.SparklineModel,
+    model: models.SparklineModel,
     key: sdmxdata.PartialKey
   ): void {
     const x: string = visual.findBindingByType("X", 0)!.getConcept();
@@ -440,7 +447,7 @@ export class SparklineAdapter implements Adapter {
         if (this.maxDate === null || this.maxDate.getTime() < d.getTime()) {
           this.maxDate = d
         }
-*/
+        */
         if (model.earliest == null) {
           model.earliest = rtd.getFirstMillisecond();
         }
@@ -464,7 +471,7 @@ export class SparklineAdapter implements Adapter {
 
   public addCrossSectionalDataPoint(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey,
     crossSections: collections.Dictionary<string, any>
   ): void {
@@ -473,22 +480,22 @@ export class SparklineAdapter implements Adapter {
 }
 export class SeriesSparklineAdapter implements Adapter {
   private id = 1001;
-  private singleValues: sdmxdata.PartialKey|undefined = undefined;
+  private singleValues: sdmxdata.PartialKey | undefined = undefined;
   public getId() {
     return this.id;
   }
   public createModel(
     visual: visual.Visual,
     cube: sdmxdata.Cube
-  ): model.SeriesSparklineModel {
-    return this.updateModel(visual, cube, new model.SeriesSparklineModel());
+  ): models.SeriesSparklineModel {
+    return this.updateModel(visual, cube, new models.SeriesSparklineModel());
   }
 
   public updateModel(
     visual: visual.Visual,
     cube: sdmxdata.Cube,
-    model: model.SeriesSparklineModel
-  ): model.SeriesSparklineModel {
+    model: models.SeriesSparklineModel
+  ): models.SeriesSparklineModel {
     /*
     let min: number = null
     let  max: number = null
@@ -498,8 +505,7 @@ export class SeriesSparklineAdapter implements Adapter {
     if (cube === null || cube === undefined) return model;
     model.setXLabel(visual.findBindingByType("X", 0)!.getConceptName());
     model.setYLabel(visual.findBindingByType("Y", 0)!.getConceptName());
-    const cu: CubeWalkUtils = new CubeWalkUtils();
-    cu.visitRoot(cube, visual, this, model);
+    CubeWalkUtils.visitRoot(cube, visual, this, model);
     model.finish(visual);
     return model;
   }
@@ -526,7 +532,7 @@ export class SeriesSparklineAdapter implements Adapter {
 
   public setSingleValues(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey
   ): void {
     this.singleValues = key;
@@ -534,7 +540,7 @@ export class SeriesSparklineAdapter implements Adapter {
 
   public addSingleDataPoint(
     visual: visual.Visual,
-    model: model.SeriesSparklineModel,
+    model: models.SeriesSparklineModel,
     key: sdmxdata.PartialKey
   ): void {
     const x: string = visual.findBindingByType("X", 0)!.getConcept();
@@ -605,7 +611,7 @@ export class SeriesSparklineAdapter implements Adapter {
 
   public addCrossSectionalDataPoint(
     visual: visual.Visual,
-    model: model.Model,
+    model: models.Model,
     key: sdmxdata.PartialKey,
     crossSections: collections.Dictionary<string, any>
   ): void {
@@ -613,5 +619,113 @@ export class SeriesSparklineAdapter implements Adapter {
   }
 }
 
+
+export class OpenlayersMapAdapter implements Adapter {
+  private id = 2000;
+  private visual: visual.Visual | undefined = undefined;
+  //private model:models.MapModel|undefined = undefined;
+  private singleValues: sdmxdata.PartialKey | undefined = undefined;
+  public getId(): number {
+    return this.id
+  }
+  public getName(): string {
+    return "Openlayers 6";
+  }
+  public canCreateModelFromVisual(v: visual.Visual): boolean {
+    let multiBinds: number = 0;
+    let singleBinds: number = 0;
+    let colour: number = 0;
+    let time: number = 0;
+    let area: number = 0;
+    if (v.bindings == undefined || v.bindings == null) return false;
+    for (let i: number = 0; i < v.bindings.length; i++) {
+      let b: bindings.BoundToDiscrete = v.bindings![i];
+      if (b instanceof bindings.BoundToDiscrete) {
+        let discrete: bindings.BoundToDiscrete = b as bindings.BoundToDiscrete;
+        if (discrete.expectValues() == 1) {
+          singleBinds++;
+        } else if (b instanceof bindings.BoundToArea) {
+          multiBinds++;
+          area++;
+        } else {
+          multiBinds++;
+        }
+      }
+    }
+    if (v.countBindingByType("Colour") == 1) {
+      colour = 1;
+    }
+    if (v.findBindingByType("Time", 0) instanceof bindings.BoundToTimeDropdown) {
+      time = 1;
+    }
+    return multiBinds == 1 && area == 1 && colour == 1 && time == 1;
+  }
+  public createModel(v: visual.Visual, cube: sdmxdata.Cube | undefined): models.Model {
+    return this.updateModel(v, cube, new models.MapModel());
+  }
+  public updateModel(
+    v: visual.Visual,
+    cube: sdmxdata.Cube | undefined,
+    model: models.Model
+  ): models.Model {
+    this.visual = v;
+    let m = model as models.MapModel;
+    let t = new Date().getTime();
+    CubeWalkUtils.visitRoot(cube!, v, this, m);
+    console.log("walk took:" + (new Date().getTime() - t));
+    let bc: bindings.BoundToContinuousColour | undefined = v.findBindingByType("Colour", 0) as bindings.BoundToContinuousColour;
+    m.maxColour = new Color(bc.getMaxColour());
+    m.minColour = new Color(bc.getMinColour());
+    m.density = (v.findBindingByType("Area", 0) as bindings.BoundToArea).isDensity();
+    m.zeroOrigin = bc.zeroOrigin;
+    m.finish(v);
+    return m;
+  }
+
+  public setSingleValues(
+    visual: visual.Visual,
+    model: models.Model,
+    key: sdmxdata.PartialKey
+  ): void {
+    // Do Nothing
+  }
+
+  public addSingleDataPoint(
+    visual: visual.Visual,
+    model: any,
+    key: sdmxdata.PartialKey
+  ): void {
+    let btarea: bindings.BoundToArea = visual.findBindingByType("Area", 0) as bindings.BoundToArea;
+    let area: structure.ItemType = key.getComponent(btarea.getConcept());
+    let id: string = structure.NameableType.toIDString(area);
+    let val: string | undefined = visual.findBindingByType("Colour", 0)?.getConcept();
+    let v1 = parseFloat(key.getComponent(val!));
+    let desc = id + "\n";
+    desc = desc + structure.NameableType.toString(area) + "\n";
+    desc = desc + v1;
+    model.addFeature(id, structure.NameableType.toString(area), v1, desc, false);
+  }
+
+  public addCrossSectionalDataPoint(
+    visual: visual.Visual,
+    model: models.Model,
+    key: sdmxdata.PartialKey,
+    crossSections: collections.Dictionary<string, string>
+  ): void {
+    // Do Nothing
+  }
+  private finished: boolean = false;
+  public hasStatus(): boolean {
+    return false;
+  }
+  public clear() {
+    this.finished = false;
+  }
+  public finish(v: visual.Visual) {
+    this.finished = true;
+  }
+}
+
 AdapterRegistrySingleton.getList().push(new SparklineAdapter());
 AdapterRegistrySingleton.getList().push(new SeriesSparklineAdapter());
+AdapterRegistrySingleton.getList().push(new OpenlayersMapAdapter());

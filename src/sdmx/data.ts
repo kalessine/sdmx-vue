@@ -41,7 +41,7 @@ export class QueryKey {
   private name: string | undefined = undefined;
   private values: Array<string> = [];
   private possibleValues: Array<structure.ItemType> = [];
-  private walkedValues: Array<structure.ItemType> = [];
+  private walkedValues: Array<structure.ItemType|string> = [];
   constructor(
     structRef: commonreferences.Reference,
     registry: interfaces.LocalRegistry,
@@ -68,12 +68,18 @@ export class QueryKey {
     this.name = s;
   }
   public setValue(a: string) {
+    if(a==undefined){
+      throw new Error("value undefined");
+    }
     this.values = [a];
   }
   public getValue(): string {
     return this.values[0];
   }
   public setValues(a: Array<string>) {
+    if(a.length==0){
+      throw new Error("array empty!");
+    }
     this.values = a;
   }
 
@@ -104,13 +110,14 @@ export class QueryKey {
       .findDataStructure(this.structRef!)!
       .findComponentString(this.name!)!;
     const lr = comp.getLocalRepresentation();
-    if (lr === undefined || lr.getEnumeration() === undefined) {
+    if (lr === undefined || lr.getEnumeration() === undefined&&this.registry
+    .findDataStructure(this.structRef!)?.getDataStructureComponents()?.getDimensionList().getMeasureDimension()?.identifiesMeString(this.name!)) {
       const conceptScheme: structure.ConceptSchemeType | undefined = this.registry.findConceptScheme(
         comp.getConceptIdentity()!
       );
       return conceptScheme;
     } else {
-      if (lr !== undefined) {
+      if (lr !== undefined&&lr.getEnumeration()!=undefined) {
         const codelist = this.registry.findCodelist(lr.getEnumeration()!);
         return codelist;
       }
@@ -133,6 +140,7 @@ export class QueryKey {
 
   public setQueryAll(b: boolean) {
     this.queryAll = b;
+    if(b){this.clear();}
   }
 
   public possibleValuesString(): Array<string> {
@@ -143,7 +151,7 @@ export class QueryKey {
     return result;
   }
 
-  public getWalkedValues(): Array<structure.ItemType> {
+  public getWalkedValues(): Array<structure.ItemType|string> {
     if (this.walkedValues != null) return this.walkedValues;
     return this.walkedValues;
   }
@@ -174,22 +182,22 @@ export class QueryKey {
   public addPossibleValue(itm: structure.ItemType) {
     for (let i = 0; i < this.possibleValues.length; i++) {
       // already in here
-      if (this.possibleValues[i] === itm) {
+      if (this.possibleValues[i].getId()?.equalsID(itm.getId()!)) {
         return;
       }
     }
-    if (itm === null) return;
+    if (itm === null||itm===undefined) return;
     this.possibleValues.push(itm);
   }
 
-  public addWalkedValue(itm: structure.ItemType) {
+  public addWalkedValue(itm: structure.ItemType|string) {
     for (let i = 0; i < this.walkedValues.length; i++) {
       // already in here
-      if (this.walkedValues[i] === itm) {
+      if (this.walkedValues[i]==structure.NameableType.toIDString(itm)) {
         return;
       }
     }
-    if (itm === null) return;
+    if (itm === null||itm===undefined) return;
     this.walkedValues.push(itm);
   }
 
@@ -301,7 +309,7 @@ export class Query {
     return undefined;
   }
 
-  public getDataStructue(): structure.DataStructure | undefined {
+  public getDataStructure(): structure.DataStructure | undefined {
     const struct: structure.DataStructure | undefined = this.registry!.findDataStructure(
       this.structRef!
     );
@@ -2133,6 +2141,7 @@ export class Cube {
         .getDimensions().length;
       i++
     ) {
+      console.log(dim);
       dim = dim.getSubCubeDimension(
         structure.NameableType.toIDString(
           key.getComponent(dim.getSubDimension()!)

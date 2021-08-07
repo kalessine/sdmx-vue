@@ -83,6 +83,9 @@ export interface Actions {
   [ActionTypes.loadJSON](
     { state, commit }: AugmentedActionContext, json: any
   ): void
+  [ActionTypes.forceUpdate](
+    { state, commit }: AugmentedActionContext
+  ): void
 }
 
 export const actions: ActionTree<State, State> & Actions = {
@@ -150,9 +153,12 @@ export const actions: ActionTree<State, State> & Actions = {
     commit(MutationTypes.setDataMessage, { 'msg': dataMessage });
   },
   async [ActionTypes.doWalk]({ state, commit }) {
+    commit(MutationTypes.setModel, { 'md': undefined });
+    setTimeout(function(){
     let md: model.Model | undefined = state.visual.createModel();
     commit(MutationTypes.setModel, { 'md': md });
     commit(MutationTypes.selectedTab, { 't': 5 });
+    },2000);
   },
 
   async [ActionTypes.loadJSON]({ state, commit }, json: any) {
@@ -199,5 +205,9 @@ export const actions: ActionTree<State, State> & Actions = {
     let md: model.Model | undefined = state.visual.createModel();
     commit(MutationTypes.setModel, { 'md': md });
     commit(MutationTypes.selectedTab, { 't': 5 });
-  }
+  },
+  async [ActionTypes.forceUpdate]({ state, commit }) {
+    state.updateKey+=1;
+  },
+
 }

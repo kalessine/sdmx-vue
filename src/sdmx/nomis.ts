@@ -75,7 +75,7 @@ export function parseXml(s: string): any {
 export class NOMISRESTServiceRegistry
   implements interfaces.RemoteRegistry, interfaces.Queryable {
   private agency: string = "NOMIS";
-  private serviceURL: string = "http://www.nomisweb.co.uk/api";
+  private serviceURL: string = "https://www.nomisweb.co.uk/api";
   private options: string = "uid=0xad235cca367972d98bd642ef04ea259da5de264f";
   private local: interfaces.LocalRegistry = new registry.LocalRegistry();
 
@@ -123,8 +123,8 @@ export class NOMISRESTServiceRegistry
       .substring(0, geogIndex);
     const dstRef: commonreferences.Ref = new commonreferences.Ref();
     dstRef.setAgencyId(flow.getAgencyId());
-    dstRef.setId(new commonreferences.ID(id));
-    dstRef.setVersion(flow.getVersion());
+    dstRef.setMaintainableParentId(new commonreferences.ID(id));
+    dstRef.setMaintainableParentVersion(flow.getVersion());
     const st: Promise<message.StructureType> = this.retrieve(
       this.getServiceURL() + "/v01/dataset/" + id + "/time/def.sdmx.xml"
     );
@@ -171,17 +171,31 @@ export class NOMISRESTServiceRegistry
             queryString += "&";
           }
           queryString += name + "=";
-          for (let j = 0; j < q.getQueryKey(kns[i])!.size(); j++) {
-            queryString += q.getQueryKey(kns[i])!.get(j);
-            if (j < q.getQueryKey(kns[i])!.size() - 1) {
-              queryString += ",";
+          if (q.getQueryKey(kns[i])!.size() != 0) {
+            for (let j = 0; j < q.getQueryKey(kns[i])!.size(); j++) {
+              queryString += q.getQueryKey(kns[i])!.get(j);
+              if (j < q.getQueryKey(kns[i])!.size() - 1) {
+                queryString += ",";
+              }
+            }
+          } else {
+            if (nomis.local.findDataStructure(new commonreferences.Reference(dstRef, undefined))?.findComponentString(name)?.getLocalRepresentation()?.getEnumeration() != null) {
+              const nameCL: structure.Codelist | undefined = nomis.local.findCodelist(nomis.local.findDataStructure(new commonreferences.Reference(dstRef, undefined))?.findComponentString(name)?.getLocalRepresentation()?.getEnumeration()!);
+              queryString += kns[i] + "=";
+              console.log(kns[i]);
+              for (let j = 0; j < nameCL!.size(); j++) {
+                queryString += structure.NameableType.toIDString(nameCL!.getItem(j));
+                if (j < nameCL!.size() - 1) {
+                  queryString += ",";
+                }
+              }
             }
           }
         }
         return nomis.retrieveData(
           flow,
           "http://www.nomisweb.co.uk/api/v01/dataset/" +
-          dstRef.getId() +
+          dstRef.getMaintainableParentId() +
           ".compact.sdmx.xml" +
           queryString +
           times +
@@ -348,7 +362,7 @@ export class NOMISRESTServiceRegistry
     const opts: any = {};
     opts.url = urlString + s;
     opts.method = "GET";
-    opts.headers = { };
+    opts.headers = {};
     return this.makeRequest(opts).then(function (a: any) {
       const dm = parser.SdmxParser.parseData(a);
       const payload = new common.PayloadStructureType();
@@ -445,115 +459,122 @@ export class NOMISRESTServiceRegistry
     const nomis = this;
     if (this.dataflowList != null) {
       const promise1 = new Promise<Array<structure.Dataflow>>(
-        function(resolve:any, reject:any) {
+        function (resolve: any, reject: any) {
           resolve(nomis.dataflowList);
         }.bind(this)
       );
       return promise1;
     } else {
-      const dfs: Array<structure.Dataflow> = [];
-      const promise2: any = this.retrieve(
-        this.serviceURL + "/v01/dataset/def.sdmx.xml"
-      ).then(function(st: message.StructureType) {
-        const packArray = [];
-        const list: Array<structure.DataStructure> = st
-          .getStructures()!
-          .getDataStructures()!
-          .getDataStructures()!;
-        for (let i = 0; i < list.length; i++) {
-          const dst: structure.DataStructure = list[i];
-          const cubeId: string = structure.NameableType.toIDString(dst);
-          const cubeName: string = dst.findName("en")!.getText();
-          const url: string =
-            nomis.serviceURL + "/v01/dataset/" + cubeId + ".overview.xml";
-          const pack = { cubeId: cubeId, cubeName: cubeName, url: url };
-          packArray.push(pack);
-        }
-        return packArray;
+      return nomis.retrieve("./nomis.xml").then(function (st: message.StructureType): Array<structure.Dataflow> {
+        nomis.dataflowList = st.getStructures()?.getDataflows()?.getDataflowList();
+        return nomis.dataflowList!;
       });
-      return promise2
-        .map(
-          function(item:any, index:any, length:any) {
-            const pack = item;
-            return nomis.retrieve2(pack.url, pack).then(function(pack) {
-              const cubeId2: string = pack.cubeId;
-              const cubeName2: string = pack.cubeName;
-              const url2: string = pack.url;
-              const doc: string = pack.string;
-              const parsedDataflows = [];
-              try {
-                const geogList: Array<NOMISGeography> =nomis.parseGeography(
-                  doc,
-                  cubeId2,
-                  cubeName2
-                );
-                for (let j = 0; j < geogList.length; j++) {
-                  const dataFlow: structure.Dataflow = new structure.Dataflow();
-                  dataFlow.setAgencyId(
-                    new commonreferences.NestedNCNameID(nomis.agency)
-                  );
-                  dataFlow.setId(
-                    new commonreferences.ID(
-                      cubeId2 + "_" + geogList[j].getGeography()
-                    )
-                  );
-                  const name: common.Name = new common.Name(
-                    "en",
-                    cubeName2 + " " + geogList[j].getGeographyName()
-                  );
-                  const names: Array<common.Name> = [];
-                  names.push(name);
-                  dataFlow.setNames(names);
-                  const ref: commonreferences.Ref = new commonreferences.Ref();
-                  ref.setAgencyId(
-                    new commonreferences.NestedNCNameID(nomis.agency)
-                  );
-                  ref.setMaintainableParentId(dataFlow.getId());
-                  ref.setMaintainableParentVersion(commonreferences.Version.ONE);
-                  const reference = new commonreferences.Reference(ref, undefined);
-                  dataFlow.setStructure(reference);
-                  parsedDataflows.push(dataFlow);
-                }
-                if (geogList.length === 0) {
-                  const dataFlow: structure.Dataflow = new structure.Dataflow();
-                  dataFlow.setAgencyId(
-                    new commonreferences.NestedNCNameID(nomis.agency)
-                  );
-                  dataFlow.setId(new commonreferences.ID(cubeId2 + "_NOGEOG"));
-                  const name: common.Name = new common.Name("en", cubeName2);
-                  const names: Array<common.Name> = [];
-                  names.push(name);
-                  dataFlow.setNames(names);
-                  const ref: commonreferences.Ref = new commonreferences.Ref();
-                  ref.setAgencyId(
-                    new commonreferences.NestedNCNameID(nomis.agency)
-                  );
-                  ref.setMaintainableParentId(dataFlow.getId());
-                  ref.setMaintainableParentVersion(commonreferences.Version.ONE);
-                  const reference = new commonreferences.Reference(ref, undefined);
-                  dataFlow.setStructure(reference);
-                  parsedDataflows.push(dataFlow);
-                }
-              } catch (error) {}
-              return parsedDataflows;
-            });
-          },
-          { concurrency: 10 }
-        )
-        .delay(1300)
-        .then(
-          function(stuff:Array<Array<structure.Dataflow>>) {
-            // works with delay of 1000, put 1300 to be safe =D
-            const dfs = [];
-            for (let i = 0; i < stuff.length; i++) {
-              for (let j = 0; j < stuff[i].length; j++) {
-                dfs.push(stuff[i][j]);
+      /*
+      
+      
+            const dfs: Array<structure.Dataflow> = [];
+            const promise2: any = this.retrieve(
+              this.serviceURL + "/v01/dataset/def.sdmx.xml"
+            ).then(function(st: message.StructureType) {
+              const packArray = [];
+              const list: Array<structure.DataStructure> = st
+                .getStructures()!
+                .getDataStructures()!
+                .getDataStructures()!;
+              for (let i = 0; i < list.length; i++) {
+                const dst: structure.DataStructure = list[i];
+                const cubeId: string = structure.NameableType.toIDString(dst);
+                const cubeName: string = dst.findName("en")!.getText();
+                const url: string =
+                  nomis.serviceURL + "/v01/dataset/" + cubeId + ".overview.xml";
+                const pack = { cubeId: cubeId, cubeName: cubeName, url: url };
+                packArray.push(pack);
               }
-            }
-            nomis.dataflowList = dfs;
-            return dfs;
-          }.bind(this)
-        );
+              return packArray;
+            });
+            return promise2
+              .map(
+                function(item:any, index:any, length:any) {
+                  const pack = item;
+                  return nomis.retrieve2(pack.url, pack).then(function(pack) {
+                    const cubeId2: string = pack.cubeId;
+                    const cubeName2: string = pack.cubeName;
+                    const url2: string = pack.url;
+                    const doc: string = pack.string;
+                    const parsedDataflows = [];
+                    try {
+                      const geogList: Array<NOMISGeography> =nomis.parseGeography(
+                        doc,
+                        cubeId2,
+                        cubeName2
+                      );
+                      for (let j = 0; j < geogList.length; j++) {
+                        const dataFlow: structure.Dataflow = new structure.Dataflow();
+                        dataFlow.setAgencyId(
+                          new commonreferences.NestedNCNameID(nomis.agency)
+                        );
+                        dataFlow.setId(
+                          new commonreferences.ID(
+                            cubeId2 + "_" + geogList[j].getGeography()
+                          )
+                        );
+                        const name: common.Name = new common.Name(
+                          "en",
+                          cubeName2 + " " + geogList[j].getGeographyName()
+                        );
+                        const names: Array<common.Name> = [];
+                        names.push(name);
+                        dataFlow.setNames(names);
+                        const ref: commonreferences.Ref = new commonreferences.Ref();
+                        ref.setAgencyId(
+                          new commonreferences.NestedNCNameID(nomis.agency)
+                        );
+                        ref.setMaintainableParentId(dataFlow.getId());
+                        ref.setMaintainableParentVersion(commonreferences.Version.ONE);
+                        const reference = new commonreferences.Reference(ref, undefined);
+                        dataFlow.setStructure(reference);
+                        parsedDataflows.push(dataFlow);
+                      }
+                      if (geogList.length === 0) {
+                        const dataFlow: structure.Dataflow = new structure.Dataflow();
+                        dataFlow.setAgencyId(
+                          new commonreferences.NestedNCNameID(nomis.agency)
+                        );
+                        dataFlow.setId(new commonreferences.ID(cubeId2 + "_NOGEOG"));
+                        const name: common.Name = new common.Name("en", cubeName2);
+                        const names: Array<common.Name> = [];
+                        names.push(name);
+                        dataFlow.setNames(names);
+                        const ref: commonreferences.Ref = new commonreferences.Ref();
+                        ref.setAgencyId(
+                          new commonreferences.NestedNCNameID(nomis.agency)
+                        );
+                        ref.setMaintainableParentId(dataFlow.getId());
+                        ref.setMaintainableParentVersion(commonreferences.Version.ONE);
+                        const reference = new commonreferences.Reference(ref, undefined);
+                        dataFlow.setStructure(reference);
+                        parsedDataflows.push(dataFlow);
+                      }
+                    } catch (error) {}
+                    return parsedDataflows;
+                  });
+                },
+                { concurrency: 10 }
+              )
+              .delay(1300)
+              .then(
+                function(stuff:Array<Array<structure.Dataflow>>) {
+                  // works with delay of 1000, put 1300 to be safe =D
+                  const dfs = [];
+                  for (let i = 0; i < stuff.length; i++) {
+                    for (let j = 0; j < stuff[i].length; j++) {
+                      dfs.push(stuff[i][j]);
+                    }
+                  }
+                  nomis.dataflowList = dfs;
+                  return dfs;
+                }.bind(this)
+              );*/
     }
   }
 

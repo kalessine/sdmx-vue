@@ -56,26 +56,32 @@
     <div v-if="isTimeDimension">
       Can the User choose their own Times?
       <InputSwitch v-model="currentBinding.chooseTime"></InputSwitch>
-      Date From<Calendar v-model="startDate" yearNavigator="true" yearRange="1970:2021"/>
-      Date To<Calendar v-model="endDate"  yearNavigator="true" yearRange="1970:2021"/>
+      Date From<Calendar
+        v-model="startDate"
+        yearNavigator="true"
+        yearRange="1970:2021"
+      />
+      Date To<Calendar
+        v-model="endDate"
+        yearNavigator="true"
+        yearRange="1970:2021"
+      />
     </div>
     <!--Start Date
   <Calendar v-model="getQuery().startDate" />
   End Date
   <Calendar v-model="getQuery().endDate" />-->
     <div v-if="isContinuous">
-      Zero Origin<InputSwitch
-        v-model="currentBinding.zeroOrigin"
-      ></InputSwitch>
+      Zero Origin<InputSwitch v-model="currentBinding.zeroOrigin"></InputSwitch>
       <div>
-      Share Maximum Values<InputSwitch
-        v-model="currentBinding.sharedMaximum"
-      ></InputSwitch>
+        Share Maximum Values<InputSwitch
+          v-model="currentBinding.sharedMaximum"
+        ></InputSwitch>
       </div>
     </div>
     <div v-if="currentBinding.boundTo === 26 && !isContinuous">
       <p>Choose the Single Value for this Dimension</p>
-      <Dropdown :options="items" v-model="item" optionLabel="name" /><br/>
+      <Dropdown :options="items" v-model="item" optionLabel="name" /><br />
     </div>
     <div
       v-if="
@@ -84,15 +90,26 @@
       "
     >
       <p>Choose the Default Value for this Dropdown Dimension</p>
-      <Dropdown :options="items" v-model="item" optionLabel="name" /><br/>
+      <Dropdown :options="items" v-model="item" optionLabel="name" /><br />
       Client Side
-      <InputSwitch
-        v-model="currentBinding.clientSide"
-      ></InputSwitch>
+      <InputSwitch v-model="currentBinding.clientSide"></InputSwitch>
+      <p>PercentOf Id</p>
+      <Dropdown
+        :options="items2"
+        v-model="percentOf"
+        optionLabel="name"
+      /><br />
     </div>
     <div v-if="currentBinding.boundTo === 14 && !isContinuous">
       14 colours
       <!--<ItemsColour :binding="currentBinding" />-->
+    </div>
+    <div v-if="currentBinding.boundTo === 4">
+      <br />
+      <span class="p-float-label">
+        <InputText id="geojson" type="text" v-model="currentBinding.geoJSON" />
+        <label for="username">URL to GeoJSON file</label>
+      </span>
     </div>
   </div>
 </template>
@@ -102,6 +119,7 @@ import { useStore } from "vuex";
 import { computed, ref } from "vue";
 import * as interfaces from "../sdmx/interfaces";
 import * as sdmx from "../sdmx";
+import * as sdmxdata from "../sdmx/data";
 import * as bindings from "../visual/bindings";
 import * as structure from "../sdmx/structure";
 export default {
@@ -158,15 +176,49 @@ export default {
         return {'name':structure.NameableType.toString(item)};
       });
     });
+    const items2 = computed(() => {
+      if (store.getters.currentBindingItems === undefined) {
+        return [];
+      }
+      let result = [{'name':'No Percentage Of Id'}];
+      store.getters.currentBindingItems.map((item:structure.ItemType)=>{
+        result.push({'name':structure.NameableType.toString(item)});
+      });
+      return result;
+    });
     const item = computed({
       get: ():{name:string} => {
-           console.log({'name':structure.NameableType.toString(store.getters.currentBindingItem), 'code':structure.NameableType.toIDString(store.getters.currentBindingItem)});
            return {'name':structure.NameableType.toString(store.getters.currentBindingItem)};
         },
       set: (val:{name:string}) => {
         store.dispatch("changeBindingItem", val);
       }
     });
+    const percentOf = computed({
+      get: ():{'name':string} => {
+           if(store.getters.currentBinding.getPercentOfId()===undefined) {
+             return {'name':'No Percentage Of Id'};
+           } else {
+             let item = sdmxdata.ValueTypeResolver.resolveCode(store.state.visual.getQueryable()!.getRemoteRegistry()!.getLocalRegistry(),store.state.visual.getQuery()!.getDataStructure()!,store.getters.currentBinding.getConcept(),store.getters.currentBinding.getPercentOfId());
+             return {'name':structure.NameableType.toString(item!)};
+           }
+        },
+      set: (val:{name:string}) => {
+        if(val.name==='No Percentage Of Id'){
+            store.getters.currentBinding.setPercentOfId(undefined);  
+        }else{
+          let items = store.state.visual.getQuery()?.getQueryKey(store.state.visual.currentBinding?.getConcept())?.getPossibleValues();
+          let id = undefined;
+          for(let i=0;i<items!.length;i++) {
+          if( structure.NameableType.toString(items![i])==val.name){
+             id = structure.NameableType.toIDString(items[i]);
+            }
+          }
+          store.getters.currentBinding.setPercentOfId(id);
+        }
+      }
+    });
+
     const changeClass = (bclass: number) => {
       let oldb: bindings.BoundTo = store.getters.currentBinding;
       let b = undefined;
@@ -364,7 +416,7 @@ export default {
       changeClass,
       items,
       item,
-      startDate, endDate
+      startDate, endDate,percentOf,items2
     };
   },
   name: "ShowBinding",

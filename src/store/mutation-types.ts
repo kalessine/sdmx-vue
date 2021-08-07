@@ -35,6 +35,7 @@ export enum MutationTypes {
     setDataMessage = 'setDataMessage',
     createModel = 'createModel',
     setModel = 'setModel',
-    walk = 'walk'
+    walk = 'walk',
+    forceUpdate = 'forceUpdate'
     
   }

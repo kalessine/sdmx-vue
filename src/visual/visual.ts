@@ -66,7 +66,7 @@ export class Visual {
   private _boundToString: string | undefined;
   private _dataMessage: message.DataMessage | undefined;
   private _forceUpdate: number = 0;
-
+  private bindingNamesMap: collections.Dictionary<string,bindings.BoundTo>|undefined = undefined;
   constructor() {
     this._bindingsColumnMapper = new sdmxdata.FlatColumnMapper();
     this._visualId = "render";
@@ -95,6 +95,12 @@ export class Visual {
   }
   set startDate(d: Date | undefined) {
     this.query!.startDate = d;
+  }
+  get bindings(): Array<bindings.BoundToDiscrete> | undefined {
+    return this._bindings;
+  }
+  set bindings(b: Array<bindings.BoundToDiscrete> | undefined) {
+    this._bindings=b;
   }
   get endDate(): Date | undefined {
     return this.query?.endDate;
@@ -243,6 +249,7 @@ export class Visual {
     );
     this._values = [];
     this._values.push(b2 as bindings.BoundToContinuous);
+    this.bindingNamesMap=undefined;
     this._cube = new sdmxdata.Cube(this._dataStruct, this._queryable!.getRemoteRegistry()!.getLocalRegistry());
   }
 
@@ -364,7 +371,6 @@ export class Visual {
 
   public createModel(): model.Model | undefined {
     this.createCube();
-    let model = this._adapter!.createModel(this, this._cube);
     return this.walk();
   }
   set model(s: model.Model | undefined) {
@@ -376,19 +382,48 @@ export class Visual {
   }
 
   public walk(): model.Model | undefined {
+    let t = new Date().getTime();
+    console.log(
+      "before beforeWalk"
+    );
     this.beforeWalk();
+    let t2 = new Date().getTime();
+    console.log(
+      "after beforeWalk"
+    );
+    console.log(t2-t);
     if (this._model != undefined) {
       this._model!.clear();
     }
+    let t3 = new Date().getTime();
+    console.log(
+      "after model.clear()"
+    );
+    console.log(t3-t2);
     if (this._adapter == undefined) {
       console.log("no adapter");
       return;
     }
-    this._model = this._adapter!.createModel(this, this._cube!);
+    var tempModel = this._adapter!.createModel(this, this._cube!);
+    let t4 = new Date().getTime();
+    console.log(
+      "after adapter.createModel"
+    );
+    console.log(t4-t3);
     this.afterWalk();
+    let t5 = new Date().getTime();
+    console.log(
+      "after afterWalk"
+    );
+    console.log(t5-t4);
     this._requery = false;
     this._dirty = false;
-    return this._model;
+    let t6 = new Date().getTime();
+    console.log(
+      "after returning"
+    );
+    console.log(t6-t5);
+    return tempModel;
   }
 
   public beforeQuery() {
@@ -418,7 +453,9 @@ export class Visual {
       } else {
         this._query.getQueryKey(this._time.getConcept())!.setQueryAll(false);
       }
+      this._query.getQueryKey(this._time.getConcept())!.setPossibleValues([]);
       this._query.getQueryKey(this._time.getConcept())!.setWalkedValues([]);
+      
     }
     if (this._crossSection != null) {
       if (this._crossSection.isQueryAll()) {
@@ -433,6 +470,12 @@ export class Visual {
       this._query
         .getQueryKey(this._crossSection.getConcept())!
         .setWalkedValues([]);
+    }
+    /*
+       We need to query for the field to get the percentage of field too!
+    */
+    if(this.getPercentOf()!=undefined){
+      this._query.getQueryKey(this.getPercentOf()?.getConcept())?.addValue(this.getPercentOf()?.getPercentOfId()!);
     }
   }
 
@@ -471,12 +514,14 @@ export class Visual {
       } else {
         this._query.getQueryKey(this._time.getConcept())!.setWalkAll(false);
       }
+      if(this.timeBinding?.getCodelist()!=undefined){
       this._query.getQueryKey(this._time.getConcept())!.setPossibleValues(
         this._query
           .getQueryKey(this._time.getConcept())!
           .getItemScheme()!
           .getItems()
       );
+      }
     }
     if (this._crossSection != null) {
       if (this._crossSection.isWalkAll()) {
@@ -504,11 +549,13 @@ export class Visual {
       throw new Error("Bindings is undefined!");
     }
     for (let i = 0; i < this._bindings.length; i++) { }
-    if (this._time != null) {
-      //this._query.getQueryKey(this.time.getConcept()).filterValues();
-    }
-    if (this._crossSection != null) {
-      //this._query.getQueryKey(this.crossSection.getConcept()).filterValues();
+    //if (this._time != undefined) {
+     // this._query!.getQueryKey(this._time!.getConcept())!.setValues(this._query!.getQueryKey(this._time!.getConcept())!.possibleValuesString());
+     // console.log(this._query!.getQueryKey(this._time!.getConcept())!.possibleValuesString());
+    //}
+    if (this._crossSection != undefined) {
+      this._query!.getQueryKey(this._crossSection!.getConcept())!.setValues(this._query!.getQueryKey(this._crossSection!.getConcept())!.possibleValuesString());
+      console.log(this._query!.getQueryKey(this._crossSection!.getConcept())!.possibleValuesString());
     }
   }
 
@@ -527,7 +574,20 @@ export class Visual {
   public getBinding(i: number | undefined): bindings.BoundToDiscrete {
     return this._bindings![i!]!;
   }
-
+  public getPercentOf():bindings.BoundToDiscrete|undefined {
+    for (let i = 0; i < this._bindings!.length; i++) {
+        if(this._bindings![i].getPercentOfId()!=undefined){
+           return this._bindings![i];
+      }
+    }
+    if (this._time!=undefined&&this._time.getPercentOfId()!=undefined) {
+        return this._time;
+    }
+    if (this._crossSection!=undefined&&this._crossSection.getPercentOfId()!=undefined) {
+         return this._crossSection;
+    }
+    return undefined;
+  }
   public getTime() {
     return this._time;
   }
@@ -535,6 +595,28 @@ export class Visual {
     return this._crossSection;
   }
   public findBinding(concept: string): bindings.BoundTo | undefined {
+    if(this.bindingNamesMap===undefined){
+      let bindingNamesMap = new collections.Dictionary<string,bindings.BoundTo>();
+      for (let i = 0; i < this._bindings!.length; i++) {
+        // console.log("Compare:" + this.bindings[i].getConcept());
+        bindingNamesMap.setValue(this._bindings![i].getConcept(),this._bindings![i]);
+      }
+      if (this._time !== null) {
+        bindingNamesMap.setValue(this._time!.getConcept(),this._time!);
+      }
+      if (this._crossSection != null) {
+          bindingNamesMap.setValue(this._crossSection!.getConcept(),this._crossSection!);
+      }
+      for (let i = 0; i < this._values!.length; i++) {
+        if (this._values![i].getConcept() === concept) {
+          bindingNamesMap.setValue(this._values![i].getConcept(),this._values![i]);
+        }
+      }
+      this.bindingNamesMap=bindingNamesMap;
+      return this.bindingNamesMap.getValue(concept);
+    }
+    return this.bindingNamesMap.getValue(concept);
+    /*
     for (let i = 0; i < this._bindings!.length; i++) {
       // console.log("Compare:" + this.bindings[i].getConcept());
       if (this._bindings![i].getConcept() === concept) {
@@ -557,17 +639,25 @@ export class Visual {
       }
     }
     // console.log("Can't Find:"+concept);
-    return undefined;
+    */
   }
 
   public addWalkedValue(dim: string, val: string) {
-    this._query!.getQueryKey(dim)!.addWalkedValue(
+    if(this.timeBinding!=undefined&&dim===this.timeBinding.getConcept()){
+      let itm = new structure.ItemType();
+      itm.setNames([new common.Name(val,sdmx.SdmxIO.getLocale())]);
+      itm.setId(new commonreferences.ID(val));
+      this._query!.getQueryKey(dim)!.addPossibleValue(itm);
+      this._query!.getQueryKey(dim)!.addWalkedValue(val);
+    }else{
+      this._query!.getQueryKey(dim)!.addWalkedValue(
       this._query!
         .getQueryKey(dim)!
         .getItemScheme()!
         .findItemString(val)!
     );
-    if (this._query!.getQueryKey(dim)!.getValues().length === 0) {
+    }
+    if (this._query!.getQueryKey(dim)!.getValues().length === 0&&!this._query?.getQueryKey(dim)?.isWalkAll()) {
       this._query!.getQueryKey(dim)!.setValue(val);
     }
     if (this.findBinding(dim)?.requery) {
@@ -773,7 +863,7 @@ export class Visual {
     }
     if(!b.isContinuous()&&b.defaultBindingValues!==undefined) {
       this._query!.getQueryKey(b.getConcept())!.clear();
-      for (let i = 0; i < b.defaultBindingValues.length; i++) {
+      for (let i = 0; i < b.defaultBindingValues.length&&!b.isQueryAll(); i++) {
         this._query!.getQueryKey(b.getConcept())!.addValue(b.defaultBindingValues[i]);
       }
     }

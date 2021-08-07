@@ -130,7 +130,7 @@ export class BoundTo {
   private measureDescriptor = false;
   private _requery = true;
   private _defaultBindingValues:Array<string> = [];
-
+  private perCentId:string|undefined = undefined
   // static DIMENSION = [BoundTo.BOUND_DISCRETE_X, BoundTo.BOUND_DISCRETE_Y, BoundTo.BOUND_DISCRETE_DROPDOWN, BoundTo.BOUND_DISCRETE_LIST, BoundTo.BOUND_DISCRETE_SERIES];
   // static TIME = [BoundTo.BOUND_TIME_X, BoundTo.BOUND_TIME_Y, BoundTo.BOUND_TIME_DROPDOWN, BoundTo.BOUND_DISCRETE_LIST, BoundTo.BOUND_DISCRETE_SERIES];
   // static MEASURE = [BoundTo.BOUND_MEASURES_DROPDOWN, BoundTo.BOUND_MEASURES_LIST, BoundTo.BOUND_MEASURES_SERIES, BoundTo.BOUND_MEASURES_INDIVIDUAL];
@@ -178,6 +178,15 @@ export class BoundTo {
    */
   public setConcept(concept: string) {
     this.concept = concept;
+  }
+
+
+  public getPercentOfId() {
+    return this.perCentId;
+  }
+
+  public setPercentOfId(s: string) {
+    this.perCentId = s;
   }
 
   /**
@@ -398,6 +407,16 @@ export class BoundToCrossSection extends BoundToDiscrete {
   }
 }
 export class BoundToAllValues extends BoundToDiscrete {
+  constructor(
+    queryable: interfaces.Queryable,
+    dataStruct: structure.DataStructure,
+    concept: string
+  ) {
+    super(queryable, dataStruct, concept);
+    super.requery=true;
+    super.setWalkAll(true);
+  }
+
   get boundTo(): number {
     return BoundTo.BOUND_DISCRETE_ALL;
   }
@@ -949,7 +968,6 @@ export class BoundToCrossSingle extends BoundToCrossSection {
 }
 export class BoundToDropdown extends BoundToDiscrete {
   public flat = true;
-  public perCentId: string | null | undefined = null;
   constructor(
     queryable: interfaces.Queryable,
     dataStruct: structure.DataStructure,
@@ -972,14 +990,6 @@ export class BoundToDropdown extends BoundToDiscrete {
     this.flat = b;
   }
 
-  public getPercentOfId() {
-    return this.perCentId;
-  }
-
-  public setPercentOfId(s: string) {
-    this.perCentId = s;
-  }
-
   get boundTo(): number {
     return BoundTo.BOUND_DISCRETE_DROPDOWN;
   }
@@ -997,7 +1007,6 @@ export class BoundToDropdown extends BoundToDiscrete {
 
 export class BoundToButtonMenu extends BoundToDiscrete {
   public flat = true;
-  public perCentId: string | null | undefined = null;
   constructor(
     queryable: interfaces.Queryable,
     dataStruct: structure.DataStructure,
@@ -1018,14 +1027,6 @@ export class BoundToButtonMenu extends BoundToDiscrete {
 
   public setFlat(b: boolean) {
     this.flat = b;
-  }
-
-  public getPercentOfId() {
-    return this.perCentId;
-  }
-
-  public setPercentOfId(s: string) {
-    this.perCentId = s;
   }
 
   get boundTo(): number {
@@ -1141,15 +1142,15 @@ export class BoundToArea extends BoundToDiscrete {
   private flat = true;
   private level = 0;
   private density = true;
-  private lat = 131.0361;
-  private lon = -35.345;
+  private lat = 133.0361;
+  private lon = -24.28;
   private zoom = 2;
   private ignoreTotal = true;
   private title = "ASGS2011";
-  private geoJSON = "asgs2011.geojson";
+  private _geoJSON:string|undefined = "asgs2011.geojson";
   private matchField = "ID";
   private area = "AREA";
-  private geoJSONObject: object | Promise<object> |undefined = undefined;
+  private _geoJSONObject: any | Promise<any> |undefined = undefined;
 
   constructor(
     queryable: interfaces.Queryable,
@@ -1159,8 +1160,28 @@ export class BoundToArea extends BoundToDiscrete {
     super(queryable, dataStruct, concept);
     super.setQueryAll(true);
     super.setWalkAll(true);
+    this.geoJSON="https://geojson.s3.ap-southeast-2.amazonaws.com/asgs2011.geojson"
   }
-
+  public getPolygonWithMatchingId(s:string){
+    if(s===undefined) return [];
+    for(let i=0;i<this._geoJSONObject.features.length;i++) {
+       var feat:any = this._geoJSONObject.features[i];
+       if(feat.properties[this.matchField]===s&&feat.geometry!=null&&feat.geometry.type==="Polygon"){
+         return feat.geometry.coordinates;
+       }
+    }
+    return [];
+  }
+  public getMultiPolygonWithMatchingId(s:string){
+    if(s===undefined) return [];
+    for(let i=0;i<this._geoJSONObject.features.length;i++) {
+       var feat:any = this._geoJSONObject.features[i];
+       if(feat.properties[this.matchField]===s&&feat.geometry!=null&&feat.geometry.type==="MultiPolygon"){
+         return feat.geometry.coordinates;
+       }
+    }
+    return [];
+  }
   public isDensity() {
     return this.density;
   }
@@ -1216,21 +1237,23 @@ export class BoundToArea extends BoundToDiscrete {
   public setTitle(s: string) {
     this.title = s;
   }
-  public getGeoJSON(): string {
-    return this.geoJSON;
-  }
-  public setGeoJSON(s: string): Promise<object> {
-    this.geoJSON = s;
-    return makeRequest({ url: this.geoJSON, method: "GET" }).then(
+  set geoJSON(s: string|undefined) {
+    this._geoJSON = s;
+    makeRequest({ url: this._geoJSON, method: "GET" }).then(
       (gj: any) => {
-        this.geoJSONObject = JSON.parse(gj);
-        return gj;
+        this._geoJSONObject = JSON.parse(gj);
       }
-    );
+    )
   }
 
-  public getGeoJSONObject(): object|undefined {
-    return this.geoJSONObject;
+  get geoJSON(): string|undefined {
+    return this._geoJSON;
+  }
+  get geoJSONObject(): object|undefined {
+    return this._geoJSONObject;
+  }
+  set geoJSONObject(o:object|undefined) {
+    this._geoJSONObject=o;
   }
   public getMatchField(): string {
     return this.matchField;
@@ -1256,7 +1279,6 @@ export class BoundToArea extends BoundToDiscrete {
 }
 export class BoundToTimeDropdown extends BoundToTime {
   public flat = true;
-  public perCentId: string|undefined = undefined;
   constructor(
     queryable: interfaces.Queryable,
     dataStruct: structure.DataStructure,
@@ -1264,7 +1286,8 @@ export class BoundToTimeDropdown extends BoundToTime {
   ) {
     super(queryable, dataStruct, concept);
     super.setQueryAll(true);
-    super.setWalkAll(true);
+    super.setWalkAll(false);
+    super.requery=false;
   }
 
   public expectValues(): number {
@@ -1277,14 +1300,6 @@ export class BoundToTimeDropdown extends BoundToTime {
 
   public setFlat(b: boolean) {
     this.flat = b;
-  }
-
-  public getPercentOfId() {
-    return this.perCentId;
-  }
-
-  public setPercentOfId(s: string) {
-    this.perCentId = s;
   }
 
   get boundTo(): number {
