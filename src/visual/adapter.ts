@@ -29,7 +29,6 @@ import * as visual from "../visual/visual";
 import * as models from "../visual/model";
 import * as bindings from "../visual/bindings";
 import * as sdmxtime from "../sdmx/time";
-import { vModelSelect } from "vue";
 import Color from '../Color';
 export interface Adapter {
   getId(): number;
@@ -119,26 +118,15 @@ export class CubeWalkUtils {
     multiples: sdmxdata.PartialKey,
     queryKey: sdmxdata.QueryKey
   ) {
-    // console.log("visit");
     const concept: string = current.getConcept();
     const val: string = current.getValue();
-    // System.out.println("Visit:"+concept+":"+val);
     const bd: bindings.BoundTo = visual.findBinding(concept)!;
     let subDims = current.listSubDimensions();
-    if (
-      queryKey
-        .containsValue(val) ||
-      bd.isWalkAll()
-    ) {
-
-      const itm: structure.ItemType = queryKey
-        .getItemScheme()!
-        .findItemString(val)!;
-      if (bd.expectValues() === 1) {
-        singles.setComponent(concept, itm);
-      } else {
-        multiples.setComponent(concept, itm);
-      }
+    const itm: structure.ItemType = visual.addWalkedValue(concept, val);
+    if (bd.expectValues() === 1) {
+      singles.setComponent(concept, itm);
+    } else {
+      multiples.setComponent(concept, itm);
     }
     for (let i = 0; i < subDims.length; i++) {
       const inner: sdmxdata.CubeDimension = subDims[i];
@@ -201,12 +189,13 @@ export class CubeWalkUtils {
     const concept: string = dim.getConcept();
     const val: string = dim.getValue();
     const bd: bindings.BoundTo = visual.getTime()!;
+    let itm = visual.addWalkedValue(concept, val);
     if (bd.expectValues() > 1) {
-      multiples.setComponent(concept, val);
+      multiples.setComponent(concept, itm);
     } else {
-      singles.setComponent(concept, val);
+      singles.setComponent(concept, itm);
     }
-    visual.addWalkedValue(concept, val);
+    
     const obsList = dim.listObservations();
     for (let l = 0; l < obsList.length; l++) {
       const ob: sdmxdata.CubeObservation = obsList[l];
@@ -238,12 +227,7 @@ export class CubeWalkUtils {
       // if (!visual.getQuery().getQueryKey(dim.getConcept())) {
       //  return
       // }
-      const itm: object = visual
-        .getQuery()!
-        .getQueryKey(crossSection!.getConcept())!
-        .getItemScheme()!
-        .findItemString(dim.getCrossSection()!)!;
-      visual.addWalkedValue(crossSection.getConcept(), dim.getCrossSection()!);
+      const itm:structure.ItemType = visual.addWalkedValue(crossSection.getConcept(), dim.getCrossSection()!);
       if (crossSection.expectValues() > 1) {
         multiples.setComponent(dim.getCrossSection()!, itm);
       } else {

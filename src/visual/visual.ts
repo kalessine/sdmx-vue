@@ -33,6 +33,7 @@ import * as adapterModule from "./adapter";
 import * as model from "./model";
 import * as sdmx from "../sdmx";
 import * as message from "../sdmx/message";
+import { stringToMonthCode } from "@/sdmx/time";
 export class Visual {
   private _clearedTime: boolean | undefined;
   public _cube: sdmxdata.Cube | undefined;
@@ -67,6 +68,7 @@ export class Visual {
   private _dataMessage: message.DataMessage | undefined;
   private _forceUpdate: number = 0;
   private bindingNamesMap: collections.Dictionary<string,bindings.BoundTo>|undefined = undefined;
+  private bindingTypesMap: collections.Dictionary<string,bindings.BoundTo>|undefined = undefined;
   constructor() {
     this._bindingsColumnMapper = new sdmxdata.FlatColumnMapper();
     this._visualId = "render";
@@ -205,7 +207,7 @@ export class Visual {
       dataStruct
         .getDataStructureComponents()!
         .getDimensionList()
-        .getMeasureDimension() != null
+        .getMeasureDimension() != undefined
     ) {
       const b4: bindings.BoundTo = new bindings.BoundToDropdown(
         this._queryable!,
@@ -481,6 +483,7 @@ export class Visual {
     /*
        We need to query for the field to get the percentage of field too!
     */
+    
     if(this.getPercentOf()!=undefined){
       this._query.getQueryKey(this.getPercentOf()?.getConcept())?.addValue(this.getPercentOf()?.getPercentOfId()!);
     }
@@ -649,27 +652,37 @@ export class Visual {
     */
   }
 
-  public addWalkedValue(dim: string, val: string) {
+  public addWalkedValue(dim: string, val: string):structure.ItemType {
+    let itm:structure.ItemType|undefined = undefined;
     if(this.timeBinding!=undefined&&dim===this.timeBinding.getConcept()){
-      let itm = new structure.ItemType();
+      for(let i=0;i<this._query!.getQueryKey(dim)!.getWalkedValues().length;i++) {
+        if(this._query!.getQueryKey(dim)!.getWalkedValues()[i]===val){
+          for(let j=0;j<this._query!.getQueryKey(dim)!.getPossibleValues().length;j++) {
+            if(this._query!.getQueryKey(dim)!.getPossibleValues()[j].getId()?.equalsString(val)){
+              return this._query!.getQueryKey(dim)!.getPossibleValues()[j];
+            }
+          }
+      }
+    }
+      itm = new structure.ItemType();
       itm.setNames([new common.Name(val,sdmx.SdmxIO.getLocale())]);
       itm.setId(new commonreferences.ID(val));
       this._query!.getQueryKey(dim)!.addPossibleValue(itm);
-      this._query!.getQueryKey(dim)!.addWalkedValue(val);
+      this._query!.getQueryKey(dim)!.addWalkedValue(itm);
     }else{
-      this._query!.getQueryKey(dim)!.addWalkedValue(
-      this._query!
-        .getQueryKey(dim)!
-        .getItemScheme()!
-        .findItemString(val)!
-    );
+      itm = this._query!
+      .getQueryKey(dim)!
+      .getItemScheme()!
+      .findItemString(val);
+      this._query!.getQueryKey(dim)!.addWalkedValue(itm!);
     }
     if (this._query!.getQueryKey(dim)!.getValues().length === 0&&!this._query?.getQueryKey(dim)?.isWalkAll()) {
       this._query!.getQueryKey(dim)!.setValue(val);
     }
-    if (this.findBinding(dim)?.requery) {
-      this._requery = true;
-    }
+    //if (this.findBinding(dim)?.requery) {
+    //  this._requery = true;
+    //}
+    return itm!;
   }
 
   public getQuery(): sdmxdata.Query | undefined {
@@ -679,44 +692,51 @@ export class Visual {
     return this._queryable;
   }
   public findBindingByType(s: string, idx: number): bindings.BoundTo | undefined {
+    if(this.bindingTypesMap==undefined){
+      this.bindingTypesMap=new collections.Dictionary<string,bindings.BoundTo>();
+    }
+    let b = undefined;
+    if(this.bindingTypesMap.getValue(s+"-"+idx)==undefined){
     let foundIndex = idx | 0;
-    for (let i = 0; i < this._bindings!.length; i++) {
+    for (let i = 0; i < this._bindings!.length&&b==undefined; i++) {
       if (this._bindings![i].isType(s)) {
         if (foundIndex === 0) {
-          return this._bindings![i];
+          b = this._bindings![i];
         } else {
           foundIndex--;
         }
       }
     }
-    if (this._crossSection != undefined) {
+    if (this._crossSection != undefined&&b==undefined) {
       if (this._crossSection.isType(s)) {
         if (foundIndex === 0) {
-          return this._crossSection;
+          b=this._crossSection;
         } else {
           foundIndex--;
         }
       }
     }
-    if (this._time !== undefined) {
+    if (this._time !== undefined&&b==undefined) {
       if (this._time!.isType(s)) {
         if (foundIndex === 0) {
-          return this._time;
+          b=this._time;
         } else {
           foundIndex--;
         }
       }
     }
-    for (let i = 0; i < this._values!.length; i++) {
+    for (let i = 0; i < this._values!.length&&b==undefined; i++) {
       if (this._values![i].isType(s)) {
         if (foundIndex === 0) {
-          return this._values![i];
+          b=this._values![i];
         } else {
           foundIndex--;
         }
       }
     }
-    return undefined;
+  }
+  if(b!=undefined){this.bindingTypesMap.setValue(s+"-"+idx,b);}
+  return this.bindingTypesMap.getValue(s+"-"+idx);
   }
 
   public countBindingByType(s: string): number {
@@ -843,6 +863,7 @@ export class Visual {
   }
 
   public changeBindingClass(b: bindings.BoundTo) {
+    this.bindingTypesMap=undefined;
     if (this._query!.getQueryKey(b.getConcept()) !== undefined) {
       this._query!.getQueryKey(b.getConcept())!.clear();
       for (let i = 0; i < this._bindings!.length; i++) {

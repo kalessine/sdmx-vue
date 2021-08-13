@@ -22,11 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-import {readonly} from 'vue';
+import {readonly,shallowRef} from 'vue';
 import * as visual from '../visual/visual';
 export const state = {
     visual: new visual.Visual(),
     selectedTab: 0,
     updateKey: 0
 }
+Object.assign(state.visual, { _isVue: true });
 export type State = typeof state

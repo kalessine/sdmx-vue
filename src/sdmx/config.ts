@@ -24,20 +24,20 @@ SOFTWARE.
 */
 export class SdmxConfig {
   public static SANITISE_NAMES = false;
-
-  public static TRUNCATE_NAMES = 100;
+  public static TRUNCATE_NAMES = false;
+  public static TRUNCATE_NAMES_LENGTH = 100;
 
   public static isSanitiseNames(): boolean {
     return SdmxConfig.SANITISE_NAMES;
   }
 
   public static setTruncateNames(n: number) {
-    SdmxConfig.TRUNCATE_NAMES = n;
+    SdmxConfig.TRUNCATE_NAMES_LENGTH = n;
   }
 
   public static truncateName(s: string) {
     if (SdmxConfig.TRUNCATE_NAMES) {
-      return s.substring(0, SdmxConfig.TRUNCATE_NAMES);
+      return s.substring(0, SdmxConfig.TRUNCATE_NAMES_LENGTH);
     }
     return s;
   }

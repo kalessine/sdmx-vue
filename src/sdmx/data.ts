@@ -42,6 +42,7 @@ export class QueryKey {
   private values: Array<string> = [];
   private possibleValues: Array<structure.ItemType> = [];
   private walkedValues: Array<structure.ItemType|string> = [];
+  private walkedValuesDict: collections.Dictionary<string,structure.ItemType> = new collections.Dictionary<string,structure.ItemType>();
   constructor(
     structRef: commonreferences.Reference,
     registry: interfaces.LocalRegistry,
@@ -84,16 +85,9 @@ export class QueryKey {
   }
 
   public addValue(s: string) {
-    for (let i = 0; i < this.values.length; i++) {
-      // already in here
-      if (this.values[i] === s) {
-        return;
-      }
-    }
-    if (s === "undefined") {
-      return;}
-    if (s === null) {
-      return;
+    for(let i=0;i<this.values.length;i++) {
+        if(this.values[i]==s){
+          return;}
     }
     this.values.push(s);
   }
@@ -158,6 +152,10 @@ export class QueryKey {
 
   public setWalkedValues(list: Array<structure.ItemType>) {
     this.walkedValues = list;
+    this.walkedValuesDict.clear();
+    for(let i=0;i<list.length;i++) {
+      this.walkedValuesDict.setValue(structure.NameableType.toIDString(list[i]),list[i]);
+    }
   }
 
   public filterValues(array: Array<string>) {
@@ -190,14 +188,12 @@ export class QueryKey {
     this.possibleValues.push(itm);
   }
 
-  public addWalkedValue(itm: structure.ItemType|string) {
-    for (let i = 0; i < this.walkedValues.length; i++) {
-      // already in here
-      if (this.walkedValues[i]==structure.NameableType.toIDString(itm)) {
-        return;
-      }
+  public addWalkedValue(itm: structure.ItemType) {
+    if(this.walkedValuesDict.containsKey(structure.NameableType.toIDString(itm))){
+      return;
     }
     if (itm === null||itm===undefined) return;
+    this.walkedValuesDict.setValue(structure.NameableType.toIDString(itm),itm);
     this.walkedValues.push(itm);
   }
 
@@ -224,10 +220,7 @@ export class QueryKey {
   }
 
   public canHaveValue(s: string) {
-    for (let i = 0; i < this.walkedValues.length; i++) {
-      if (structure.NameableType.toIDString(this.walkedValues[i]) === s)
-        return true;
-    }
+    if(this.walkedValuesDict.containsKey(s))return true;
     return false;
   }
 
@@ -1761,6 +1754,7 @@ export class CubeAttribute {
 
 export class ListCubeDimension extends CubeDimension {
   private list: Array<CubeDimension> = [];
+  private dict: collections.Dictionary<string,CubeDimension> = new collections.Dictionary<string,CubeDimension>();
   constructor(concept: string | undefined, value: string | undefined) {
     super(concept, value);
     if (concept === null) {
@@ -1769,34 +1763,40 @@ export class ListCubeDimension extends CubeDimension {
   }
 
   public getSubCubeDimension(id: string): CubeDimension | undefined {
-    for (let i = 0; i < this.list.length; i++) {
+    return this.dict.getValue(id);
+    /*for (let i = 0; i < this.list.length; i++) {
       const cd: CubeDimension = this.list[i];
       if (cd.getValue() === id) {
+        console.log(cd);
         return cd;
       }
     }
-    return undefined;
+    return undefined;*/
   }
 
   public putSubCubeDimension(sub: CubeDimension) {
-    const old: CubeDimension | undefined = this.getSubCubeDimension(sub.getValue());
+    this.dict.setValue(sub.getValue(),sub);
+    this.setSubDimension(sub.getConcept());
+    /*const old: CubeDimension | undefined = this.getSubCubeDimension(sub.getValue());
     if (old !== undefined) {
       this.list.splice(this.list.indexOf(old), 1);
     }
     this.list.push(sub);
-    this.setSubDimension(sub.getConcept());
+    */
   }
 
   public listSubDimensions(): Array<CubeDimension> {
-    return this.list;
+    return this.dict.values();
+    //return this.list;
   }
 
   public listDimensionValues(): Array<string> {
-    const set: Array<string> = [];
+    return this.dict.keys();
+    /*const set: Array<string> = [];
     for (let i = 0; i < this.list.length; i++) {
       set.push(this.list[i].getValue());
     }
-    return set;
+    return set;*/
   }
 }
 export class RootCubeDimension extends ListCubeDimension {
